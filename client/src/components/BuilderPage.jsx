@@ -9,6 +9,7 @@ import BuildHistory        from './BuildHistory'
 import ParallaxBackground  from './ParallaxBackground'
 import SparkButton         from './SparkButton'
 import GlowingTitle        from './GlowingTitle'
+import ScrollToTop         from './ScrollToTop'
 import { ROLES }      from '../data/mockData'
 import { getCharacters, generateBuild, saveBuild } from '../services/api'
 
@@ -452,6 +453,7 @@ export default function BuilderPage() {
         <BuildHistory />
       </main>
 
-          </div>
+      <ScrollToTop />
+    </div>
   )
 }
