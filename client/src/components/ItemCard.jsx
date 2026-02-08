@@ -249,25 +249,6 @@ export default function ItemCard({ item, index, shouldFlip = false }) {
             />
           </div>
         </div>
-        
-
-        {/* ── CARD EDGES (for 3D thickness) ── */}
-        <div
-          className="absolute top-0 left-0 w-full bg-gradient-to-b from-[#2a2a3e] to-[#1a1a2e] rounded-2xl"
-          style={{ backfaceVisibility: 'hidden', transform: 'rotateX(90deg) translateZ(-1px)', height: '2px', transformOrigin: 'top' }}
-        />
-        <div
-          className="absolute bottom-0 left-0 w-full bg-gradient-to-b from-[#1a1a2e] to-[#0a0a0a] rounded-2xl"
-          style={{ backfaceVisibility: 'hidden', transform: 'rotateX(-90deg) translateZ(-1px)', height: '2px', transformOrigin: 'bottom' }}
-        />
-        <div
-          className="absolute top-0 left-0 h-full bg-gradient-to-r from-[#2a2a3e] to-[#1a1a2e] rounded-2xl"
-          style={{ backfaceVisibility: 'hidden', transform: 'rotateY(-90deg) translateZ(-1px)', width: '2px', transformOrigin: 'left' }}
-        />
-        <div
-          className="absolute top-0 right-0 h-full bg-gradient-to-r from-[#1a1a2e] to-[#0a0a0a] rounded-2xl"
-          style={{ backfaceVisibility: 'hidden', transform: 'rotateY(90deg) translateZ(-1px)', width: '2px', transformOrigin: 'right' }}
-        />
       </div>
     </div>
   )
