@@ -8,6 +8,12 @@ export default function BuildResults({ result, historyId, isSaved, onSave }) {
   const [visibleCards, setVisibleCards] = useState(0)
   const [isStrategyExpanded, setIsStrategyExpanded] = useState(true)
   const [isTipsExpanded, setIsTipsExpanded] = useState(true)
+  const [replayKey, setReplayKey] = useState(0)
+
+  const replayAnimations = () => {
+    setVisibleCards(0)
+    setReplayKey(k => k + 1)
+  }
 
   // Auto-scroll to build results when they appear
   useEffect(() => {
@@ -16,22 +22,32 @@ export default function BuildResults({ result, historyId, isSaved, onSave }) {
     }
   }, [])
 
-  // Staggered card reveal animation
+  // Staggered card reveal animation — reruns on replay
   useEffect(() => {
     const totalCards = (result.crest ? 1 : 0) + result.items.length
     let count = 0
     const interval = setInterval(() => {
       count++
       setVisibleCards(count)
-      if (count >= totalCards) {
-        clearInterval(interval)
-      }
+      if (count >= totalCards) clearInterval(interval)
     }, 120)
     return () => clearInterval(interval)
-  }, [result.crest, result.items.length])
+  }, [result.crest, result.items.length, replayKey])
 
   return (
     <section ref={sectionRef} className="animate-slide-up scroll-mt-8">
+      {/* ── test replay button ── */}
+      <button
+        type="button"
+        onClick={replayAnimations}
+        className="fixed right-6 top-1/2 -translate-y-1/2 z-50 glass px-4 py-3 rounded-2xl text-sm font-medium text-theme-secondary hover:text-theme-primary btn-transition shadow-xl flex flex-col items-center gap-1"
+        title="Replay card animations"
+      >
+        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+        </svg>
+        <span className="text-[10px] uppercase tracking-wider">Replay</span>
+      </button>
       {/* ── divider ── */}
       <div className="h-px bg-gradient-to-r from-transparent via-[var(--border-color)] to-transparent mb-16" />
 
@@ -127,7 +143,7 @@ export default function BuildResults({ result, historyId, isSaved, onSave }) {
             <div className="flex flex-col items-center">
               <span className="text-xs font-medium text-accent-gold uppercase tracking-wider mb-3">Crest</span>
               <div className="w-40">
-                <ItemCard item={result.crest} shouldFlip={visibleCards >= 1} />
+                <ItemCard key={`crest-${replayKey}`} item={result.crest} shouldFlip={visibleCards >= 1} />
               </div>
             </div>
           )}
@@ -151,7 +167,7 @@ export default function BuildResults({ result, historyId, isSaved, onSave }) {
             {result.items.map((item, i) => {
               const cardIndex = (result.crest ? 1 : 0) + i
               return (
-                <div key={item.id || item.name}>
+                <div key={`${item.id || item.name}-${replayKey}`}>
                   <ItemCard item={item} index={i} shouldFlip={visibleCards > cardIndex} />
                 </div>
               )
