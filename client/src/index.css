@@ -272,7 +272,7 @@
     @apply inline-block;
     color: var(--text-muted);
     text-shadow: none;
-    transition: color 0.15s ease-out, text-shadow 0.15s ease-out;
+    transition: color 0.15s ease-out, text-shadow 0.15s ease-out, transform 0.15s ease-out;
   }
 
   .glowing-letter-lit {
@@ -319,6 +319,26 @@
       0 0 10px rgba(59, 130, 246, 0.08);
   }
 
+  .glowing-letter-hover {
+    color: #fff !important;
+    text-shadow:
+      0 0 20px rgba(255, 255, 255, 1),
+      0 0 40px rgba(59, 130, 246, 0.9),
+      0 0 70px rgba(59, 130, 246, 0.7),
+      0 0 100px rgba(59, 130, 246, 0.5),
+      0 0 140px rgba(139, 92, 246, 0.4) !important;
+    transform: scale(1.1);
+  }
+
+  .glowing-letter-hover-near {
+    color: #fff !important;
+    text-shadow:
+      0 0 15px rgba(255, 255, 255, 0.6),
+      0 0 30px rgba(59, 130, 246, 0.6),
+      0 0 50px rgba(59, 130, 246, 0.4),
+      0 0 70px rgba(139, 92, 246, 0.2) !important;
+  }
+
   /* Light mode adjustments for glowing title */
   :root.light .glowing-letter {
     color: var(--text-muted);
@@ -334,5 +354,20 @@
   :root.light .glowing-letter-final {
     text-shadow:
       0 0 5px rgba(59, 130, 246, 0.1);
+  }
+
+  :root.light .glowing-letter-hover {
+    color: var(--text-primary) !important;
+    text-shadow:
+      0 0 15px rgba(59, 130, 246, 0.8),
+      0 0 35px rgba(59, 130, 246, 0.6),
+      0 0 60px rgba(59, 130, 246, 0.3) !important;
+    transform: scale(1.1);
+  }
+
+  :root.light .glowing-letter-hover-near {
+    text-shadow:
+      0 0 8px rgba(59, 130, 246, 0.3),
+      0 0 15px rgba(59, 130, 246, 0.15) !important;
   }
 }

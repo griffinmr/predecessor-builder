@@ -8,10 +8,10 @@ const animations = `
       transform: scale(0.8) translateY(16px);
     }
     60% {
-      transform: scale(1.05) translateY(-4px);
+      transform: scale(1.1) translateY(-4px);
     }
     80% {
-      transform: scale(0.98) translateY(2px);
+      transform: scale(1.1) translateY(2px);
     }
     100% {
       opacity: 1;

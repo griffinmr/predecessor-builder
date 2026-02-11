@@ -1,9 +1,10 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 
 export default function GlowingTitle({ text = 'Build your champion.' }) {
   const [litCount, setLitCount] = useState(0)
   const [burstActive, setBurstActive] = useState(false)
   const [animationComplete, setAnimationComplete] = useState(false)
+  const [hoveredIndex, setHoveredIndex] = useState(-1)
 
   const letters = text.split('')
   const totalLetters = letters.length
@@ -29,8 +30,20 @@ export default function GlowingTitle({ text = 'Build your champion.' }) {
     }
   }, [litCount, totalLetters, burstActive, animationComplete])
 
+  // Distance-based glow: letters near the hovered one also glow (dimmer)
+  const getHoverClass = useCallback((index) => {
+    if (hoveredIndex < 0 || !animationComplete) return ''
+    const dist = Math.abs(index - hoveredIndex)
+    if (dist === 0) return ' glowing-letter-hover'
+    if (dist <= 2) return ' glowing-letter-hover-near'
+    return ''
+  }, [hoveredIndex, animationComplete])
+
   return (
-    <h1 className="text-5xl font-semibold tracking-tight glowing-title-container">
+    <h1
+      className="text-5xl font-semibold tracking-tight glowing-title-container"
+      onMouseLeave={() => setHoveredIndex(-1)}
+    >
       {letters.map((letter, index) => {
         const isLit = index < litCount
         const isSpace = letter === ' '
@@ -40,14 +53,16 @@ export default function GlowingTitle({ text = 'Build your champion.' }) {
         if (isLit) className += ' glowing-letter-lit'
         if (burstActive) className += ' glowing-letter-burst'
         if (animationComplete) className += ' glowing-letter-final'
+        className += getHoverClass(index)
 
         return (
           <span
             key={index}
             className={className}
+            onMouseEnter={() => setHoveredIndex(index)}
             style={{
-              // Stagger the burst animation slightly for each letter
               animationDelay: burstActive ? `${index * 10}ms` : '0ms',
+              cursor: animationComplete ? 'default' : undefined,
             }}
           >
             {isSpace ? '\u00A0' : letter}
