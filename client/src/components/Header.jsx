@@ -1,6 +1,11 @@
 import { useTheme } from '../context/ThemeContext'
 
-export default function Header() {
+const NAV_ITEMS = [
+  { id: 'builder',     label: 'Builder' },
+  { id: 'leaderboard', label: 'Leaderboard' },
+]
+
+export default function Header({ activePage = 'builder', onNavigate }) {
   const { theme, toggleTheme } = useTheme()
 
   return (
@@ -8,46 +13,71 @@ export default function Header() {
       <div className="max-w-6xl mx-auto px-6 h-14 flex items-center justify-between">
 
         {/* Logo / Brand */}
-        <div className="flex items-center gap-3">
-          <div className="relative w-9 h-9 flex items-center justify-center flex-shrink-0">
-            <div className="absolute inset-0 rounded-xl bg-gradient-to-br from-accent-blue/20 to-accent-purple/20" />
-            <div className="absolute inset-0 rounded-xl border border-white/10" />
-            <svg className="w-[18px] h-[18px] relative z-10" viewBox="0 0 20 20" fill="none">
-              <polygon
-                points="10,1.5 18,6.25 18,13.75 10,18.5 2,13.75 2,6.25"
-                stroke="url(#hGradStroke)"
-                strokeWidth="1.25"
-                fill="url(#hGradFill)"
-                strokeLinejoin="round"
-              />
-              <line x1="10" y1="1.5" x2="10" y2="18.5" stroke="url(#hGradInner)" strokeWidth="0.75" opacity="0.5" />
-              <line x1="2" y1="6.25" x2="18" y2="13.75" stroke="url(#hGradInner)" strokeWidth="0.75" opacity="0.3" />
-              <line x1="18" y1="6.25" x2="2" y2="13.75" stroke="url(#hGradInner)" strokeWidth="0.75" opacity="0.3" />
-              <defs>
-                <linearGradient id="hGradStroke" x1="0%" y1="0%" x2="100%" y2="100%">
-                  <stop offset="0%" stopColor="#0071e3" />
-                  <stop offset="100%" stopColor="#bf5af2" />
-                </linearGradient>
-                <linearGradient id="hGradFill" x1="0%" y1="0%" x2="100%" y2="100%">
-                  <stop offset="0%" stopColor="#0071e3" stopOpacity="0.18" />
-                  <stop offset="100%" stopColor="#bf5af2" stopOpacity="0.1" />
-                </linearGradient>
-                <linearGradient id="hGradInner" x1="0%" y1="0%" x2="100%" y2="100%">
-                  <stop offset="0%" stopColor="#64d2ff" />
-                  <stop offset="100%" stopColor="#bf5af2" />
-                </linearGradient>
-              </defs>
-            </svg>
-          </div>
+        <div className="flex items-center gap-6">
+          <button
+            type="button"
+            onClick={() => onNavigate?.('builder')}
+            className="flex items-center gap-3 focus-ring rounded-lg"
+          >
+            <div className="relative w-9 h-9 flex items-center justify-center flex-shrink-0">
+              <div className="absolute inset-0 rounded-xl bg-gradient-to-br from-accent-blue/20 to-accent-purple/20" />
+              <div className="absolute inset-0 rounded-xl border border-white/10" />
+              <svg className="w-[18px] h-[18px] relative z-10" viewBox="0 0 20 20" fill="none">
+                <polygon
+                  points="10,1.5 18,6.25 18,13.75 10,18.5 2,13.75 2,6.25"
+                  stroke="url(#hGradStroke)"
+                  strokeWidth="1.25"
+                  fill="url(#hGradFill)"
+                  strokeLinejoin="round"
+                />
+                <line x1="10" y1="1.5" x2="10" y2="18.5" stroke="url(#hGradInner)" strokeWidth="0.75" opacity="0.5" />
+                <line x1="2" y1="6.25" x2="18" y2="13.75" stroke="url(#hGradInner)" strokeWidth="0.75" opacity="0.3" />
+                <line x1="18" y1="6.25" x2="2" y2="13.75" stroke="url(#hGradInner)" strokeWidth="0.75" opacity="0.3" />
+                <defs>
+                  <linearGradient id="hGradStroke" x1="0%" y1="0%" x2="100%" y2="100%">
+                    <stop offset="0%" stopColor="#0071e3" />
+                    <stop offset="100%" stopColor="#bf5af2" />
+                  </linearGradient>
+                  <linearGradient id="hGradFill" x1="0%" y1="0%" x2="100%" y2="100%">
+                    <stop offset="0%" stopColor="#0071e3" stopOpacity="0.18" />
+                    <stop offset="100%" stopColor="#bf5af2" stopOpacity="0.1" />
+                  </linearGradient>
+                  <linearGradient id="hGradInner" x1="0%" y1="0%" x2="100%" y2="100%">
+                    <stop offset="0%" stopColor="#64d2ff" />
+                    <stop offset="100%" stopColor="#bf5af2" />
+                  </linearGradient>
+                </defs>
+              </svg>
+            </div>
 
-          <div className="flex flex-col justify-center">
-            <span className="text-[15px] font-semibold text-theme-primary tracking-tight leading-none">
-              Predecessor
-            </span>
-            <span className="text-[10px] font-medium text-theme-secondary tracking-[0.12em] uppercase mt-[3px]">
-              Build Builder
-            </span>
-          </div>
+            <div className="flex flex-col justify-center text-left">
+              <span className="text-[15px] font-semibold text-theme-primary tracking-tight leading-none">
+                Predecessor
+              </span>
+              <span className="text-[10px] font-medium text-theme-secondary tracking-[0.12em] uppercase mt-[3px]">
+                Build Builder
+              </span>
+            </div>
+          </button>
+
+          {/* Navigation tabs */}
+          <nav className="hidden sm:flex items-center gap-1">
+            {NAV_ITEMS.map((item) => (
+              <button
+                key={item.id}
+                type="button"
+                onClick={() => onNavigate?.(item.id)}
+                className={[
+                  'px-3 py-1.5 rounded-lg text-sm font-medium btn-transition',
+                  activePage === item.id
+                    ? 'text-accent-blue bg-accent-blue/10'
+                    : 'text-theme-secondary hover:text-theme-primary hover:bg-white/[0.05]',
+                ].join(' ')}
+              >
+                {item.label}
+              </button>
+            ))}
+          </nav>
         </div>
 
         {/* Right side controls */}

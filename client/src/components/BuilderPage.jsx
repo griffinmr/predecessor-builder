@@ -76,7 +76,7 @@ function SectionHeader({ title, subtitle, badge, action }) {
 }
 
 // ─── main page ───────────────────────────────────────────────────────────────
-export default function BuilderPage() {
+export default function BuilderPage({ activePage, onNavigate }) {
   // ── state ──
   const [characters,        setCharacters]        = useState([])
   const [isLoading,         setIsLoading]         = useState(true)
@@ -216,7 +216,7 @@ export default function BuilderPage() {
   return (
     <div className="min-h-screen bg-theme-primary gradient-radial relative">
       <ParallaxBackground />
-      <Header />
+      <Header activePage={activePage} onNavigate={onNavigate} />
 
       <main className="max-w-6xl mx-auto px-6 py-16 space-y-20 relative z-10">
 

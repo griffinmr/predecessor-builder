@@ -1,3 +1,10 @@
+// ─── leaderboard ────────────────────────────────────────────────────────────────
+export async function getLeaderboard() {
+  const res = await fetch('/api/leaderboard')
+  if (!res.ok) throw new Error('Failed to load leaderboard')
+  return res.json()
+}
+
 // ─── character roster ──────────────────────────────────────────────────────────
 export async function getCharacters() {
   const res = await fetch('/api/characters')
