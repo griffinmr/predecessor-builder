@@ -10,18 +10,21 @@ import ParallaxBackground  from './ParallaxBackground'
 import SparkButton         from './SparkButton'
 import GlowingTitle        from './GlowingTitle'
 import ScrollToTop         from './ScrollToTop'
-import { ROLES }      from '../data/mockData'
+import { ROLES, ROLE_COLORS } from '../data/mockData'
 import { getCharacters, generateBuild, saveBuild } from '../services/api'
 
 // ─── Role Tab Button ─────────────────────────────────────────────────────────
 function RoleTab({ role, isActive, count, onClick }) {
+  const colors = ROLE_COLORS[role.id]
   return (
     <button
       type="button"
       onClick={onClick}
       className={[
         'px-5 py-2.5 rounded-full text-sm font-medium btn-transition focus-ring',
-        isActive ? 'tab-active' : 'tab-inactive',
+        isActive
+          ? `${colors.bg} ${colors.text} ${colors.border} border`
+          : 'tab-inactive',
       ].join(' ')}
     >
       {role.label}
