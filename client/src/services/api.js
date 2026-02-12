@@ -5,6 +5,12 @@ export async function getLeaderboard() {
   return res.json()
 }
 
+// ─── player hero statistics ─────────────────────────────────────────────────────
+export async function getPlayerHeroStats(playerId) {
+  const res = await fetch(`/api/players/${encodeURIComponent(playerId)}/hero-statistics`)
+  if (!res.ok) throw new Error('Failed to load hero statistics')
+  return res.json()
+}
 // ─── character roster ──────────────────────────────────────────────────────────
 export async function getCharacters() {
   const res = await fetch('/api/characters')

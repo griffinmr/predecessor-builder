@@ -27,4 +27,32 @@ router.get('/leaderboard', async (_req, res, next) => {
   }
 })
 
+// ─── Player hero statistics ────────────────────────────────────────────────
+const heroStatsCache = new Map()
+const HERO_STATS_TTL = 10 * 60 * 1000 // 10 minutes
+
+router.get('/players/:playerId/hero-statistics', async (req, res, next) => {
+  try {
+    const { playerId } = req.params
+    const now = Date.now()
+    const entry = heroStatsCache.get(playerId)
+
+    if (entry && (now - entry.at) < HERO_STATS_TTL) {
+      return res.json(entry.data)
+    }
+
+    const url = `https://omeda.city/players/${encodeURIComponent(playerId)}/hero_statistics.json`
+    const response = await fetch(url)
+    if (!response.ok) {
+      throw new Error(`Omeda API error: ${response.status}`)
+    }
+
+    const data = await response.json()
+    heroStatsCache.set(playerId, { data, at: now })
+    res.json(data)
+  } catch (err) {
+    next(err)
+  }
+})
+
 export default router

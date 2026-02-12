@@ -1,9 +1,19 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef, useCallback } from 'react'
 
 import Header              from './Header'
 import ParallaxBackground  from './ParallaxBackground'
 import ScrollToTop         from './ScrollToTop'
+import HeroStatsModal      from './HeroStatsModal'
 import { getLeaderboard }  from '../services/api'
+
+// ─── Rank image mapping ─────────────────────────────────────────────────────
+const RANK_IMAGES = ['Paragon', 'Diamond', 'Platinum', 'Gold', 'Silver', 'Bronze']
+
+function rankImage(rankTitle) {
+  const t = (rankTitle || '').toLowerCase()
+  const match = RANK_IMAGES.find((r) => t.includes(r.toLowerCase()))
+  return match ? `/ranks/${match}.png` : null
+}
 
 // ─── Rank badge colour helpers ──────────────────────────────────────────────
 function rankColor(rankTitle) {
@@ -13,6 +23,7 @@ function rankColor(rankTitle) {
   if (t.includes('platinum')) return { text: 'text-emerald-400', bg: 'bg-emerald-400/10', border: 'border-emerald-400/30' }
   if (t.includes('gold'))     return { text: 'text-amber-400',   bg: 'bg-amber-400/10',   border: 'border-amber-400/30' }
   if (t.includes('silver'))   return { text: 'text-slate-300',   bg: 'bg-slate-300/10',   border: 'border-slate-300/30' }
+  if (t.includes('bronze'))   return { text: 'text-slate-300',   bg: 'bg-slate-300/10',   border: 'border-slate-300/30' }
   return { text: 'text-theme-secondary', bg: 'bg-white/5', border: 'border-white/10' }
 }
 
@@ -46,13 +57,32 @@ function FlagPill({ flag }) {
   )
 }
 
+// ─── Row animation helpers ───────────────────────────────────────────────────
+function landingClass(pos) {
+  if (pos === 1) return 'row-land-gold'
+  if (pos === 2) return 'row-land-silver'
+  if (pos === 3) return 'row-land-bronze'
+  return 'row-land-normal'
+}
+
+function glowClass(pos) {
+  if (pos === 1) return 'row-gold-glow'
+  if (pos === 2) return 'row-silver-glow'
+  if (pos === 3) return 'row-bronze-glow'
+  return ''
+}
+
 // ─── Player Row ─────────────────────────────────────────────────────────────
-function PlayerRow({ player, index }) {
+function PlayerRow({ player, index, visible, onSelect }) {
   const pos = index + 1
   const rc = rankColor(player.rank_title)
 
   return (
-    <tr className="group border-b border-theme hover:bg-white/[0.03] btn-transition">
+    <tr
+      onClick={() => onSelect(player)}
+      className={`group border-b border-theme hover:bg-white/[0.03] btn-transition relative cursor-pointer
+        ${visible ? `${landingClass(pos)} ${glowClass(pos)}` : 'row-hidden'}`}
+    >
       {/* Position */}
       <td className="py-3 px-4 text-center">
         <span className={`text-sm ${positionStyle(pos)}`}>
@@ -82,8 +112,13 @@ function PlayerRow({ player, index }) {
       {/* Rank */}
       <td className="py-3 px-4">
         <div className="flex items-center gap-2">
-          {player.rank_image && (
-            <img src={player.rank_image} alt={player.rank_title} className="w-6 h-6" />
+          {rankImage(player.rank_title) && (
+            <img
+              src={rankImage(player.rank_title)}
+              alt={player.rank_title}
+              className="w-16 h-16 object-contain"
+              onError={(e) => { e.target.style.display = 'none' }}
+            />
           )}
           <span className={`text-xs font-medium px-2 py-0.5 rounded-full border ${rc.text} ${rc.bg} ${rc.border}`}>
             {player.rank_title}
@@ -125,16 +160,46 @@ function PlayerRow({ player, index }) {
 
 // ─── Main Page ──────────────────────────────────────────────────────────────
 export default function LeaderboardPage({ activePage, onNavigate }) {
-  const [players, setPlayers]   = useState([])
-  const [isLoading, setIsLoading] = useState(true)
-  const [error, setError]       = useState(null)
+  const [players, setPlayers]       = useState([])
+  const [isLoading, setIsLoading]   = useState(true)
+  const [error, setError]           = useState(null)
+  const [visibleCount, setVisibleCount] = useState(0)
+  const [selectedPlayer, setSelectedPlayer] = useState(null)
+  const timers = useRef([])
 
+  // Fetch data
   useEffect(() => {
     getLeaderboard()
       .then(setPlayers)
       .catch((err) => setError(err.message))
       .finally(() => setIsLoading(false))
   }, [])
+
+  // Staggered row reveal once players are loaded
+  const revealRows = useCallback((total) => {
+    // Clear any previous timers
+    timers.current.forEach(clearTimeout)
+    timers.current = []
+    setVisibleCount(0)
+
+    // Delays: 1st at 300ms, 2nd at 900ms, 3rd at 1400ms, then 80ms apart
+    const getDelay = (i) => {
+      if (i === 0) return 300   // dramatic pause before #1
+      if (i === 1) return 900   // let #1 breathe
+      if (i === 2) return 1400  // let #2 settle
+      return 1700 + (i - 3) * 80 // rapid-fire for the rest
+    }
+
+    for (let i = 0; i < total; i++) {
+      const id = setTimeout(() => setVisibleCount((c) => c + 1), getDelay(i))
+      timers.current.push(id)
+    }
+  }, [])
+
+  useEffect(() => {
+    if (players.length > 0) revealRows(players.length)
+    return () => timers.current.forEach(clearTimeout)
+  }, [players, revealRows])
 
   return (
     <div className="min-h-screen bg-theme-primary gradient-radial relative">
@@ -164,7 +229,7 @@ export default function LeaderboardPage({ activePage, onNavigate }) {
                 {error}
               </div>
             ) : (
-              <div className="overflow-x-auto">
+              <div className="overflow-x-hidden">
                 <table className="w-full">
                   <thead>
                     <tr className="border-b border-theme text-[11px] uppercase tracking-wider text-theme-muted">
@@ -178,7 +243,7 @@ export default function LeaderboardPage({ activePage, onNavigate }) {
                   </thead>
                   <tbody>
                     {players.map((player, i) => (
-                      <PlayerRow key={player.id} player={player} index={i} />
+                      <PlayerRow key={player.id} player={player} index={i} visible={i < visibleCount} onSelect={setSelectedPlayer} />
                     ))}
                   </tbody>
                 </table>
@@ -195,6 +260,13 @@ export default function LeaderboardPage({ activePage, onNavigate }) {
       </main>
 
       <ScrollToTop />
+
+      {selectedPlayer && (
+        <HeroStatsModal
+          player={selectedPlayer}
+          onClose={() => setSelectedPlayer(null)}
+        />
+      )}
     </div>
   )
 }

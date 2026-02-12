@@ -25,6 +25,10 @@
     --tab-active-bg: theme('colors.white');
     --tab-active-text: theme('colors.surface.900');
     --gradient-radial: radial-gradient(ellipse at top, rgba(255,255,255,0.03) 0%, transparent 50%);
+    --scrollbar-track: rgba(255, 255, 255, 0.03);
+    --scrollbar-thumb: rgba(255, 255, 255, 0.10);
+    --scrollbar-thumb-hover: rgba(255, 255, 255, 0.22);
+    --scrollbar-thumb-active: rgba(96, 165, 250, 0.45);
   }
 
   /* Light mode */
@@ -43,6 +47,10 @@
     --tab-active-bg: theme('colors.surface.900');
     --tab-active-text: theme('colors.white');
     --gradient-radial: radial-gradient(ellipse at top, rgba(0,0,0,0.02) 0%, transparent 50%);
+    --scrollbar-track: rgba(0, 0, 0, 0.03);
+    --scrollbar-thumb: rgba(0, 0, 0, 0.12);
+    --scrollbar-thumb-hover: rgba(0, 0, 0, 0.25);
+    --scrollbar-thumb-active: rgba(59, 130, 246, 0.50);
   }
 
   body {
@@ -53,6 +61,43 @@
 
   ::selection {
     @apply bg-accent-blue/30;
+  }
+
+  /* ── Custom scrollbar ─────────────────────────────────────────────────── */
+
+  /* Firefox */
+  * {
+    scrollbar-width: thin;
+    scrollbar-color: var(--scrollbar-thumb) var(--scrollbar-track);
+  }
+
+  /* Webkit (Chrome, Edge, Safari) */
+  ::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+  }
+
+  ::-webkit-scrollbar-track {
+    background: var(--scrollbar-track);
+    border-radius: 999px;
+  }
+
+  ::-webkit-scrollbar-thumb {
+    background: var(--scrollbar-thumb);
+    border-radius: 999px;
+    transition: background 0.2s ease;
+  }
+
+  ::-webkit-scrollbar-thumb:hover {
+    background: var(--scrollbar-thumb-hover);
+  }
+
+  ::-webkit-scrollbar-thumb:active {
+    background: var(--scrollbar-thumb-active);
+  }
+
+  ::-webkit-scrollbar-corner {
+    background: transparent;
   }
 }
 
@@ -172,6 +217,219 @@
     opacity: 0.9;
     filter: blur(1000px);
   }
+
+  /* ── Leaderboard row entrance animations ─────────────────────────────────── */
+
+  /* 1st place — epic golden slam */
+  @keyframes row-land-gold {
+    0% {
+      opacity: 0;
+      transform: translateY(-60px) scale(1.5);
+      filter: brightness(4);
+    }
+    30% {
+      opacity: 1;
+      transform: translateY(6px) scale(1.2);
+      filter: brightness(1.6);
+    }
+    50% {
+      transform: translateY(-3px) scale(1.1);
+      filter: brightness(1.3);
+    }
+    70% {
+      transform: translateY(1px) scale(1);
+      filter: brightness(1.1);
+    }
+    100% {
+      opacity: 1;
+      transform: translateY(0) scale(1);
+      filter: brightness(1);
+    }
+  }
+
+  .row-land-gold {
+    animation: row-land-gold 0.8s cubic-bezier(0.16, 1, 0.3, 1) both;
+  }
+
+  .row-land-gold td {
+    position: relative;
+  }
+
+  /* persistent golden shimmer on 1st place row */
+  .row-gold-glow {
+    box-shadow:
+      inset 0 0 30px rgba(255, 214, 10, 0.08),
+      0 0 20px rgba(255, 214, 10, 0.06);
+    background: linear-gradient(
+      90deg,
+      transparent 0%,
+      rgba(255, 214, 10, 0.04) 20%,
+      rgba(255, 214, 10, 0.07) 50%,
+      rgba(255, 214, 10, 0.04) 80%,
+      transparent 100%
+    );
+  }
+
+  /* gold flash overlay */
+  .row-land-gold::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    background: linear-gradient(
+      90deg,
+      transparent 0%,
+      rgba(255, 214, 10, 0.25) 50%,
+      transparent 100%
+    );
+    opacity: 0;
+    animation: gold-flash 1s 0.15s ease-out forwards;
+  }
+
+  @keyframes gold-flash {
+    0%   { opacity: 0; transform: scaleX(0.3); }
+    30%  { opacity: 1; transform: scaleX(1.1); }
+    100% { opacity: 0; transform: scaleX(1.5); }
+  }
+
+  /* 2nd place — silver drop */
+  @keyframes row-land-silver {
+    0% {
+      opacity: 0;
+      transform: translateY(-40px) scale(1.04);
+      filter: brightness(1);
+    }
+    35% {
+      opacity: 1;
+      transform: translateY(4px) scale(1.01);
+      filter: brightness(1.35);
+    }
+    60% {
+      transform: translateY(-2px) scale(1);
+      filter: brightness(1.15);
+    }
+    100% {
+      opacity: 1;
+      transform: translateY(0) scale(1);
+      filter: brightness(1);
+    }
+  }
+
+  .row-land-silver {
+    animation: row-land-silver 0.65s cubic-bezier(0.16, 1, 0.3, 1) both;
+  }
+
+  .row-silver-glow {
+    box-shadow:
+      inset 0 0 20px rgba(203, 213, 225, 0.06),
+      0 0 12px rgba(203, 213, 225, 0.04);
+    background: linear-gradient(
+      90deg,
+      transparent 0%,
+      rgba(203, 213, 225, 0.03) 30%,
+      rgba(203, 213, 225, 0.05) 50%,
+      rgba(203, 213, 225, 0.03) 70%,
+      transparent 100%
+    );
+  }
+
+  .row-land-silver::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    background: linear-gradient(
+      90deg,
+      transparent 0%,
+      rgba(203, 213, 225, 0.18) 50%,
+      transparent 100%
+    );
+    opacity: 0;
+    animation: silver-flash 0.8s 0.1s ease-out forwards;
+  }
+
+  @keyframes silver-flash {
+    0%   { opacity: 0; transform: scaleX(0.3); }
+    30%  { opacity: 1; transform: scaleX(1.05); }
+    100% { opacity: 0; transform: scaleX(1.3); }
+  }
+
+  /* 3rd place — bronze entrance */
+  @keyframes row-land-bronze {
+    0% {
+      opacity: 0;
+      transform: translateY(-25px) scale(1.02);
+    }
+    40% {
+      opacity: 1;
+      transform: translateY(2px) scale(1);
+    }
+    100% {
+      opacity: 1;
+      transform: translateY(0) scale(1);
+    }
+  }
+
+  .row-land-bronze {
+    animation: row-land-bronze 0.5s cubic-bezier(0.16, 1, 0.3, 1) both;
+  }
+
+  .row-bronze-glow {
+    box-shadow:
+      inset 0 0 15px rgba(180, 130, 70, 0.05),
+      0 0 8px rgba(180, 130, 70, 0.03);
+    background: linear-gradient(
+      90deg,
+      transparent 0%,
+      rgba(180, 130, 70, 0.03) 40%,
+      rgba(180, 130, 70, 0.04) 60%,
+      transparent 100%
+    );
+  }
+
+  /* 4th+ — simple slide in */
+  @keyframes row-land-normal {
+    0% {
+      opacity: 0;
+      transform: translateY(12px);
+    }
+    100% {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+
+  .row-land-normal {
+    animation: row-land-normal 0.35s ease-out both;
+  }
+
+  /* rows start invisible until their animation fires */
+  .row-hidden {
+    opacity: 0;
+  }
+
+  /* ── Hero Stats Modal animations ─────────────────────────────────────── */
+  @keyframes modal-backdrop-in {
+    from { opacity: 0; }
+    to   { opacity: 1; }
+  }
+  @keyframes modal-backdrop-out {
+    from { opacity: 1; }
+    to   { opacity: 0; }
+  }
+  @keyframes modal-in {
+    from { opacity: 0; transform: scale(0.95) translateY(10px); }
+    to   { opacity: 1; transform: scale(1) translateY(0); }
+  }
+  @keyframes modal-out {
+    from { opacity: 1; transform: scale(1) translateY(0); }
+    to   { opacity: 0; transform: scale(0.95) translateY(10px); }
+  }
+
+  .hero-modal-backdrop-in { animation: modal-backdrop-in 0.2s ease-out both; }
+  .hero-modal-backdrop-out { animation: modal-backdrop-out 0.2s ease-in both; }
+  .hero-modal-in { animation: modal-in 0.25s cubic-bezier(0.16, 1, 0.3, 1) both; }
+  .hero-modal-out { animation: modal-out 0.2s ease-in both; }
 
   /* Light mode adjustments for parallax */
   :root.light .parallax-image {
