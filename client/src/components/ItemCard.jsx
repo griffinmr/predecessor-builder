@@ -201,12 +201,21 @@ export default function ItemCard({ item, index, shouldFlip = false }) {
           />
           {/* ── icon area ── */}
           <div
-            className="w-full h-24 relative flex items-center justify-center"
+            className="w-full h-24 relative flex items-center justify-center overflow-hidden"
             style={{ background: `linear-gradient(135deg, ${gradient.from}, ${gradient.to})` }}
           >
-            <span className="text-3xl font-light text-white/15 group-hover:text-white/25 btn-transition">
-              {item.name[0]}
-            </span>
+            {item.image ? (
+              <img
+                src={item.image}
+                alt={item.name}
+                className="w-full h-full object-cover group-hover:scale-110 btn-transition"
+                loading="lazy"
+              />
+            ) : (
+              <span className="text-3xl font-light text-white/15 group-hover:text-white/25 btn-transition">
+                {item.name[0]}
+              </span>
+            )}
 
             {/* step-number badge */}
             {index !== undefined && (

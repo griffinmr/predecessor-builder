@@ -68,3 +68,24 @@ export async function saveBuild({ historyId, name, notes }) {
   }
   return res.json()
 }
+
+// ─── community builds (omeda.city) ──────────────────────────────────────────
+export async function getCommunityBuilds(filters = {}) {
+  const params = new URLSearchParams()
+  for (const [key, val] of Object.entries(filters)) {
+    if (val !== undefined && val !== null && val !== '') {
+      params.set(key, val)
+    }
+  }
+  const qs  = params.toString()
+  const url = qs ? `/api/community-builds?${qs}` : '/api/community-builds'
+  const res = await fetch(url)
+  if (!res.ok) throw new Error('Failed to load community builds')
+  return (await res.json()).builds
+}
+
+export async function getHeroes() {
+  const res = await fetch('/api/heroes')
+  if (!res.ok) throw new Error('Failed to load heroes')
+  return (await res.json()).heroes
+}

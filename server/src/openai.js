@@ -115,6 +115,7 @@ export async function generateBuildFromOpenAI({ character, role, enemies, items 
         rarity:      crestItem.rarity,
         hero_class:  crestItem.hero_class,
         stats:       crestItem.stats,
+        image:       crestItem.image || null,
       }
     }
   }
@@ -138,6 +139,7 @@ export async function generateBuildFromOpenAI({ character, role, enemies, items 
       rarity:      item.rarity,
       hero_class:  item.hero_class,
       stats:       item.stats,
+      image:       item.image || null,
     })
   }
 

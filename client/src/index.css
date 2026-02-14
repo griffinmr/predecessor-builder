@@ -163,6 +163,72 @@
     @apply transition-all duration-200 ease-out;
   }
 
+  /* ── Professional header styles ──────────────────────────────────── */
+  .header-blur {
+    background: color-mix(in srgb, var(--bg-primary) 72%, transparent);
+    border-bottom: 1px solid var(--border-color);
+    @apply backdrop-blur-2xl;
+  }
+
+  .nav-indicator-glow {
+    background: linear-gradient(135deg, rgba(0, 113, 227, 0.12), rgba(191, 90, 242, 0.08));
+    box-shadow:
+      inset 0 0 0 1px rgba(0, 113, 227, 0.15),
+      0 0 12px rgba(0, 113, 227, 0.06);
+  }
+
+  .nav-ai-badge {
+    background: linear-gradient(135deg, rgba(48, 209, 88, 0.08), rgba(48, 209, 88, 0.04));
+    border: 1px solid rgba(48, 209, 88, 0.18);
+    color: rgb(48, 209, 88);
+  }
+
+  .nav-theme-toggle {
+    background: var(--hover-bg);
+  }
+  .nav-theme-toggle:hover {
+    background: color-mix(in srgb, var(--hover-bg) 180%, transparent);
+  }
+
+  .nav-mobile-dropdown {
+    background: color-mix(in srgb, var(--bg-primary) 92%, transparent);
+    @apply backdrop-blur-2xl;
+  }
+
+  .nav-bottom-line {
+    background: linear-gradient(
+      to right,
+      transparent 5%,
+      rgba(0, 113, 227, 0.4) 30%,
+      rgba(191, 90, 242, 0.3) 50%,
+      rgba(100, 210, 255, 0.25) 70%,
+      transparent 95%
+    );
+  }
+
+  /* Light mode header adjustments */
+  :root.light .header-blur {
+    background: color-mix(in srgb, var(--bg-primary) 82%, transparent);
+  }
+
+  :root.light .nav-indicator-glow {
+    background: linear-gradient(135deg, rgba(0, 113, 227, 0.08), rgba(191, 90, 242, 0.05));
+    box-shadow:
+      inset 0 0 0 1px rgba(0, 113, 227, 0.12),
+      0 1px 3px rgba(0, 0, 0, 0.04);
+  }
+
+  :root.light .nav-bottom-line {
+    background: linear-gradient(
+      to right,
+      transparent 5%,
+      rgba(0, 113, 227, 0.25) 30%,
+      rgba(191, 90, 242, 0.2) 50%,
+      rgba(100, 210, 255, 0.15) 70%,
+      transparent 95%
+    );
+  }
+
   /* Focus ring style */
   .focus-ring {
     @apply focus:outline-none focus-visible:ring-2 focus-visible:ring-accent-blue/50 focus-visible:ring-offset-2;
