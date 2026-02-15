@@ -48,16 +48,15 @@ const RADAR_AXES = [
   { key: 'avg_performance_score',       label: 'Perf Score', unit: '',   format: (v) => v?.toFixed(0) },
 ]
 
-// ─── SVG Radar Chart ────────────────────────────────────────────────────────
+// ─── SVG Radar Chart (Enhanced) ──────────────────────────────────────────────
 function RadarChart({ heroes, allStats }) {
-  const size = 280
+  const size = 340
   const cx = size / 2
   const cy = size / 2
-  const radius = size / 2 - 40
-  const levels = 4
+  const radius = size / 2 - 55
+  const levels = 5
   const axes = RADAR_AXES.length
 
-  // Compute min/max for normalisation across all heroes
   const ranges = useMemo(() => {
     if (!allStats || allStats.length === 0) return null
     const r = {}
@@ -70,16 +69,11 @@ function RadarChart({ heroes, allStats }) {
 
   if (!ranges) return null
 
-  // Helper: angle for axis i
   const angle = (i) => (Math.PI * 2 * i) / axes - Math.PI / 2
-
-  // Helper: point on axis i at fraction f (0-1)
   const point = (i, f) => ({
     x: cx + radius * f * Math.cos(angle(i)),
     y: cy + radius * f * Math.sin(angle(i)),
   })
-
-  // Normalise a value to 0-1 range
   const normalise = (key, val) => {
     if (val == null || isNaN(val)) return 0
     const { min, max } = ranges[key]
@@ -87,28 +81,49 @@ function RadarChart({ heroes, allStats }) {
     return (val - min) / (max - min)
   }
 
-  // Build polygon path for a hero's stats
-  const heroPath = (stats) => {
-    return RADAR_AXES.map((axis, i) => {
-      const f = Math.max(0.05, normalise(axis.key, stats[axis.key]))
-      const p = point(i, f)
-      return `${i === 0 ? 'M' : 'L'} ${p.x} ${p.y}`
-    }).join(' ') + ' Z'
-  }
-
   return (
-    <svg viewBox={`0 0 ${size} ${size}`} className="w-full max-w-[320px] mx-auto">
-      {/* Grid rings */}
+    <svg viewBox={`0 0 ${size} ${size}`} className="w-full max-w-[360px] mx-auto">
+      <defs>
+        <filter id="radar-glow">
+          <feGaussianBlur stdDeviation="2.5" result="blur" />
+          <feMerge>
+            <feMergeNode in="blur" />
+            <feMergeNode in="SourceGraphic" />
+          </feMerge>
+        </filter>
+        <filter id="dot-glow">
+          <feGaussianBlur stdDeviation="1.5" result="blur" />
+          <feMerge>
+            <feMergeNode in="blur" />
+            <feMergeNode in="SourceGraphic" />
+          </feMerge>
+        </filter>
+        {heroes.map((_, idx) => (
+          <linearGradient key={idx} id={`radar-fill-${idx}`} x1="0%" y1="0%" x2="0%" y2="100%">
+            <stop offset="0%" stopColor={COMPARE_COLORS[idx].stroke} stopOpacity="0.35" />
+            <stop offset="100%" stopColor={COMPARE_COLORS[idx].stroke} stopOpacity="0.05" />
+          </linearGradient>
+        ))}
+        <radialGradient id="radar-center-glow" cx="50%" cy="50%">
+          <stop offset="0%" stopColor="rgba(96,165,250,0.06)" />
+          <stop offset="100%" stopColor="transparent" />
+        </radialGradient>
+      </defs>
+
+      {/* Center ambient glow */}
+      <circle cx={cx} cy={cy} r={radius * 0.9} fill="url(#radar-center-glow)" />
+
+      {/* Grid levels */}
       {Array.from({ length: levels }, (_, l) => {
         const f = (l + 1) / levels
         const pts = Array.from({ length: axes }, (_, i) => point(i, f))
+        const isOuter = l === levels - 1
         return (
-          <polygon
-            key={l}
+          <polygon key={l}
             points={pts.map((p) => `${p.x},${p.y}`).join(' ')}
             fill="none"
-            stroke="rgba(255,255,255,0.08)"
-            strokeWidth={1}
+            stroke={isOuter ? 'rgba(255,255,255,0.15)' : 'rgba(255,255,255,0.04)'}
+            strokeWidth={isOuter ? 1.5 : 0.5}
           />
         )
       })}
@@ -117,47 +132,47 @@ function RadarChart({ heroes, allStats }) {
       {Array.from({ length: axes }, (_, i) => {
         const p = point(i, 1)
         return (
-          <line
-            key={i}
-            x1={cx} y1={cy} x2={p.x} y2={p.y}
-            stroke="rgba(255,255,255,0.06)"
-            strokeWidth={1}
-          />
+          <line key={i} x1={cx} y1={cy} x2={p.x} y2={p.y}
+            stroke="rgba(255,255,255,0.06)" strokeWidth={0.75} />
         )
       })}
 
-      {/* Hero polygons */}
+      {/* Hero polygons with gradient fill + glow */}
       {heroes.map((hero, idx) => {
         if (!hero.stats) return null
+        const pts = RADAR_AXES.map((axis, i) => {
+          const f = Math.max(0.08, normalise(axis.key, hero.stats[axis.key]))
+          return point(i, f)
+        })
+        const pointStr = pts.map((p) => `${p.x},${p.y}`).join(' ')
         return (
-          <polygon
-            key={hero.id}
-            points={RADAR_AXES.map((axis, i) => {
-              const f = Math.max(0.05, normalise(axis.key, hero.stats[axis.key]))
-              const p = point(i, f)
-              return `${p.x},${p.y}`
-            }).join(' ')}
-            fill={COMPARE_COLORS[idx].fill}
-            stroke={COMPARE_COLORS[idx].stroke}
-            strokeWidth={2}
-            className="btn-transition"
-          />
+          <g key={hero.id}>
+            <polygon
+              points={pointStr}
+              fill={`url(#radar-fill-${idx})`}
+              stroke={COMPARE_COLORS[idx].stroke}
+              strokeWidth={2.5}
+              strokeLinejoin="round"
+              filter="url(#radar-glow)"
+              style={{ transition: 'all 0.5s ease-out' }}
+            />
+            {pts.map((p, i) => (
+              <circle key={i} cx={p.x} cy={p.y} r={3.5}
+                fill={COMPARE_COLORS[idx].stroke}
+                stroke="rgba(0,0,0,0.5)" strokeWidth={1.5}
+                filter="url(#dot-glow)" />
+            ))}
+          </g>
         )
       })}
 
       {/* Axis labels */}
       {RADAR_AXES.map((axis, i) => {
-        const p = point(i, 1.22)
+        const p = point(i, 1.28)
         return (
-          <text
-            key={axis.key}
-            x={p.x}
-            y={p.y}
-            textAnchor="middle"
-            dominantBaseline="middle"
-            className="fill-current text-theme-muted"
-            style={{ fontSize: '9px', fontWeight: 600 }}
-          >
+          <text key={axis.key} x={p.x} y={p.y}
+            textAnchor="middle" dominantBaseline="middle"
+            style={{ fontSize: '10px', fontWeight: 700, fill: 'rgba(255,255,255,0.45)', letterSpacing: '0.05em' }}>
             {axis.label}
           </text>
         )
@@ -469,233 +484,281 @@ function HeroCard({ hero, compareIndex, compareMode, compareFull, onCompare, onC
   )
 }
 
-// ─── Compare Section ────────────────────────────────────────────────────────
-function CompareSection({ compared, allStats, onRemove, onClear }) {
-  if (compared.length === 0) return null
+// ─── Stat comparison bar ─────────────────────────────────────────────────────
+function StatBar({ label, compared, axisKey, format, unit }) {
+  const values = compared.map((h) => h.stats?.[axisKey] ?? 0)
+  const max = Math.max(...values.filter((v) => v != null && v > 0)) || 1
 
   return (
-    <section className="animate-fade-in" id="compare-section">
-      <div className="glass rounded-2xl border border-theme overflow-hidden">
-        {/* Header bar */}
-        <div className="flex items-center justify-between px-5 py-4 border-b border-theme">
-          <div className="flex items-center gap-2">
-            <svg className="w-5 h-5 text-accent-blue" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
-            </svg>
-            <h3 className="text-base font-semibold text-theme-primary">Hero Comparison</h3>
-            <span className="text-xs text-theme-muted">({compared.length}/{MAX_COMPARE})</span>
-          </div>
-          <button
-            onClick={onClear}
-            className="text-xs text-theme-muted hover:text-accent-pink btn-transition px-3 py-1.5 rounded-lg hover:bg-accent-pink/10"
-          >
-            Clear All
-          </button>
-        </div>
-
-        <div className="p-5">
-          {/* Hero chips + radar */}
-          <div className="flex flex-col lg:flex-row gap-6 items-center">
-            {/* Left: selected hero chips */}
-            <div className="flex flex-col gap-2 lg:w-52 w-full">
-              {compared.map((hero, idx) => (
-                <div
-                  key={hero.id}
-                  className={`flex items-center gap-3 px-3 py-2 rounded-xl border ${COMPARE_COLORS[idx].border} ${COMPARE_COLORS[idx].bg}`}
-                >
-                  <div className="w-8 h-8 rounded-lg overflow-hidden flex-shrink-0 border" style={{ borderColor: COMPARE_COLORS[idx].stroke }}>
-                    {hero.image ? (
-                      <img src={hero.image} alt={hero.name} className="w-full h-full object-cover" />
-                    ) : (
-                      <div className="w-full h-full bg-white/5 flex items-center justify-center text-xs text-white/30">{hero.name?.charAt(0)}</div>
-                    )}
-                  </div>
-                  <span className={`text-sm font-semibold flex-1 truncate ${COMPARE_COLORS[idx].name}`}>{hero.name}</span>
-                  <button
-                    onClick={() => onRemove(hero.id)}
-                    className="p-1 rounded-md hover:bg-white/10 btn-transition text-white/40 hover:text-white"
-                  >
-                    <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                    </svg>
-                  </button>
-                </div>
-              ))}
-            </div>
-
-            {/* Center: Radar chart */}
-            <div className="flex-1 flex justify-center">
-              <RadarChart heroes={compared} allStats={allStats} />
-            </div>
-          </div>
-
-          {/* Stats comparison table */}
-          {compared.length >= 2 && (
-            <div className="mt-6 overflow-x-auto">
-              <table className="w-full text-sm">
-                <thead>
-                  <tr className="border-b border-theme">
-                    <th className="text-left text-[10px] font-bold uppercase tracking-widest text-theme-muted py-2 pr-4">Stat</th>
-                    {compared.map((hero, idx) => (
-                      <th key={hero.id} className={`text-center text-[10px] font-bold uppercase tracking-widest py-2 px-2 ${COMPARE_COLORS[idx].name}`}>
-                        {hero.name}
-                      </th>
-                    ))}
-                  </tr>
-                </thead>
-                <tbody>
-                  {RADAR_AXES.map((axis) => {
-                    const values = compared.map((h) => h.stats?.[axis.key])
-                    const best = Math.max(...values.filter((v) => v != null))
-                    return (
-                      <tr key={axis.key} className="border-b border-white/[0.03]">
-                        <td className="text-xs text-theme-secondary py-2.5 pr-4 whitespace-nowrap">{axis.label}</td>
-                        {compared.map((hero, idx) => {
-                          const val = hero.stats?.[axis.key]
-                          const isBest = val != null && val === best && compared.length > 1
-                          return (
-                            <td key={hero.id} className="text-center py-2.5 px-2">
-                              <span className={`text-xs font-bold ${isBest ? COMPARE_COLORS[idx].name : 'text-theme-primary'}`}>
-                                {val != null ? `${axis.format(val)}${axis.unit}` : '—'}
-                              </span>
-                            </td>
-                          )
-                        })}
-                      </tr>
-                    )
-                  })}
-                  <tr className="border-b border-white/[0.03]">
-                    <td className="text-xs text-theme-secondary py-2.5 pr-4">Matches</td>
-                    {compared.map((hero) => (
-                      <td key={hero.id} className="text-center py-2.5 px-2">
-                        <span className="text-xs font-bold text-theme-primary">
-                          {hero.stats?.match_count != null ? Math.round(hero.stats.match_count).toLocaleString() : '—'}
-                        </span>
-                      </td>
-                    ))}
-                  </tr>
-                  <tr className="border-b border-white/[0.03]">
-                    <td className="text-xs text-theme-secondary py-2.5 pr-4">Dmg Dealt</td>
-                    {compared.map((hero) => (
-                      <td key={hero.id} className="text-center py-2.5 px-2">
-                        <span className="text-xs font-bold text-accent-orange">
-                          {hero.stats?.avg_damage_dealt_to_heroes != null ? Math.round(hero.stats.avg_damage_dealt_to_heroes).toLocaleString() : '—'}
-                        </span>
-                      </td>
-                    ))}
-                  </tr>
-                  <tr>
-                    <td className="text-xs text-theme-secondary py-2.5 pr-4">Dmg Taken</td>
-                    {compared.map((hero) => (
-                      <td key={hero.id} className="text-center py-2.5 px-2">
-                        <span className="text-xs font-bold text-accent-pink">
-                          {hero.stats?.avg_damage_taken_from_heroes != null ? Math.round(hero.stats.avg_damage_taken_from_heroes).toLocaleString() : '—'}
-                        </span>
-                      </td>
-                    ))}
-                  </tr>
-                </tbody>
-              </table>
-            </div>
-          )}
-        </div>
+    <div className="py-1.5">
+      <div className="flex items-center justify-between mb-1.5">
+        <span className="text-[10px] font-bold uppercase tracking-[0.15em] text-white/25">{label}</span>
       </div>
-    </section>
+      <div className="space-y-1">
+        {compared.map((hero, idx) => {
+          const val = hero.stats?.[axisKey] ?? 0
+          const pct = max > 0 ? Math.max(4, (val / max) * 100) : 4
+          const isBest = val === max && compared.length > 1
+          return (
+            <div key={hero.id} className="flex items-center gap-2.5">
+              <span className="text-[10px] w-14 truncate font-semibold"
+                style={{ color: COMPARE_COLORS[idx].stroke }}>{hero.name}</span>
+              <div className="flex-1 h-[6px] rounded-full bg-white/[0.04] overflow-hidden">
+                <div className="h-full rounded-full"
+                  style={{
+                    width: `${pct}%`,
+                    background: `linear-gradient(90deg, ${COMPARE_COLORS[idx].stroke}99, ${COMPARE_COLORS[idx].stroke})`,
+                    boxShadow: isBest ? `0 0 10px ${COMPARE_COLORS[idx].stroke}40` : 'none',
+                    transition: 'width 0.7s ease-out',
+                  }} />
+              </div>
+              <span className="text-[11px] font-bold min-w-[40px] text-right tabular-nums"
+                style={{ color: isBest ? COMPARE_COLORS[idx].stroke : 'rgba(255,255,255,0.45)' }}>
+                {format ? format(val) : val}{unit || ''}
+              </span>
+            </div>
+          )
+        })}
+      </div>
+    </div>
   )
 }
 
-// ─── Sticky Compare Bar (bottom of screen) ─────────────────────────────────
-function StickyCompareBar({ compared, compareMode, onToggleMode, onClear }) {
-  const scrollToCompare = () => {
-    document.getElementById('compare-section')?.scrollIntoView({ behavior: 'smooth' })
-  }
+// ─── Compare Drawer (bottom panel) ──────────────────────────────────────────
+function CompareDrawer({ compared, compareMode, allStats, onToggleMode, onRemove, onClear }) {
+  const [expanded, setExpanded] = useState(false)
+  const isVisible = compareMode || compared.length > 0
+  const canExpand = compared.length >= 2
+
+  useEffect(() => {
+    if (compared.length < 2) setExpanded(false)
+  }, [compared.length])
 
   return (
-    <div className={[
-      'fixed bottom-0 inset-x-0 z-40 btn-transition',
-      (compareMode || compared.length > 0) ? 'translate-y-0' : 'translate-y-full',
-    ].join(' ')}>
-      <div className="max-w-6xl mx-auto px-6 pb-4">
+    <>
+      {/* Backdrop */}
+      {expanded && (
         <div
-          className="flex items-center justify-between gap-4 px-5 py-3 rounded-2xl border border-accent-blue/30"
-          style={{
-            background: 'rgba(10,10,20,0.85)',
-            backdropFilter: 'blur(20px)',
-            WebkitBackdropFilter: 'blur(20px)',
-            boxShadow: '0 -4px 30px rgba(0,0,0,0.4), 0 0 20px rgba(0,113,227,0.1)',
-          }}
-        >
-          {/* Left: toggle + selected avatars */}
-          <div className="flex items-center gap-3">
-            <button
-              onClick={onToggleMode}
-              className={[
-                'flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold btn-transition',
-                compareMode
-                  ? 'bg-accent-blue text-white shadow-lg shadow-accent-blue/25'
-                  : 'glass border border-theme text-theme-secondary hover:text-accent-blue hover:border-accent-blue/40',
-              ].join(' ')}
+          className="fixed inset-0 z-30 animate-fade-in"
+          style={{ background: 'rgba(0,0,0,0.7)', backdropFilter: 'blur(6px)' }}
+          onClick={() => setExpanded(false)}
+        />
+      )}
+
+      <div className={[
+        'fixed bottom-0 inset-x-0 z-40 transition-all duration-300 ease-out',
+        isVisible ? 'translate-y-0' : 'translate-y-full',
+      ].join(' ')}>
+
+        {/* ── Expanded comparison panel ── */}
+        {expanded && canExpand && (
+          <div className="max-w-6xl mx-auto px-4 sm:px-6 mb-3 animate-slide-up">
+            <div
+              className="rounded-2xl border border-white/[0.08] overflow-hidden"
+              style={{
+                background: 'linear-gradient(180deg, rgba(12,14,22,0.98) 0%, rgba(8,10,16,0.99) 100%)',
+                boxShadow: '0 -8px 60px rgba(0,0,0,0.6), 0 0 40px rgba(0,113,227,0.06)',
+              }}
             >
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
-              </svg>
-              {compareMode ? 'Selecting...' : 'Compare'}
-            </button>
+              {/* Top accent line */}
+              <div className="h-[2px]"
+                style={{ background: 'linear-gradient(90deg, transparent 5%, #0071e380 50%, transparent 95%)' }} />
 
-            {/* Selected hero avatars */}
-            {compared.length > 0 && (
-              <div className="flex items-center -space-x-2">
-                {compared.map((hero, idx) => (
-                  <div
-                    key={hero.id}
-                    className="w-9 h-9 rounded-full overflow-hidden border-2 bg-white/5"
-                    style={{ borderColor: COMPARE_COLORS[idx].stroke, zIndex: compared.length - idx }}
-                  >
-                    {hero.image ? (
-                      <img src={hero.image} alt={hero.name} className="w-full h-full object-cover" />
-                    ) : (
-                      <div className="w-full h-full flex items-center justify-center text-xs text-white/30">{hero.name?.charAt(0)}</div>
-                    )}
-                  </div>
-                ))}
+              {/* Panel header */}
+              <div className="flex items-center justify-between px-6 py-4 border-b border-white/[0.06]">
+                <div className="flex items-center gap-3">
+                  <div className="w-1 h-5 rounded-full bg-accent-blue shadow-lg shadow-accent-blue/30" />
+                  <h3 className="text-sm font-black uppercase tracking-[0.2em] text-white/80">
+                    Hero Comparison
+                  </h3>
+                  <span className="text-[10px] text-white/25 font-medium tracking-wider">
+                    {compared.length} HEROES
+                  </span>
+                </div>
+                <button
+                  onClick={() => setExpanded(false)}
+                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[11px] text-white/40
+                    hover:text-white hover:bg-white/[0.06] btn-transition"
+                >
+                  <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                  </svg>
+                  Collapse
+                </button>
               </div>
-            )}
 
-            {compared.length > 0 && (
-              <span className="text-xs text-theme-muted hidden sm:block">
-                {compared.length}/{MAX_COMPARE} selected
-              </span>
-            )}
+              {/* Panel content */}
+              <div className="p-6 max-h-[65vh] overflow-y-auto">
+                <div className="flex flex-col lg:flex-row gap-8 items-start">
+
+                  {/* Left: Hero chips */}
+                  <div className="lg:w-48 w-full space-y-2 flex-shrink-0">
+                    <p className="text-[9px] font-bold uppercase tracking-[0.2em] text-white/20 mb-3">Selected</p>
+                    {compared.map((hero, idx) => (
+                      <div
+                        key={hero.id}
+                        className="flex items-center gap-3 px-3 py-2.5 rounded-xl border btn-transition group"
+                        style={{
+                          borderColor: COMPARE_COLORS[idx].stroke + '30',
+                          background: COMPARE_COLORS[idx].stroke + '08',
+                        }}
+                      >
+                        <div className="w-8 h-8 rounded-lg overflow-hidden flex-shrink-0"
+                          style={{ boxShadow: `0 0 0 1px ${COMPARE_COLORS[idx].stroke}40` }}>
+                          {hero.image ? (
+                            <img src={hero.image} alt={hero.name} className="w-full h-full object-cover" />
+                          ) : (
+                            <div className="w-full h-full bg-white/5 flex items-center justify-center text-xs text-white/30">
+                              {hero.name?.charAt(0)}
+                            </div>
+                          )}
+                        </div>
+                        <span className="text-sm font-semibold flex-1 truncate"
+                          style={{ color: COMPARE_COLORS[idx].stroke }}>{hero.name}</span>
+                        <button
+                          onClick={() => onRemove(hero.id)}
+                          className="p-1 rounded-md opacity-0 group-hover:opacity-100
+                            hover:bg-white/10 btn-transition text-white/40 hover:text-white"
+                        >
+                          <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                          </svg>
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+
+                  {/* Center: Radar chart */}
+                  <div className="flex-1 flex justify-center items-center min-w-0">
+                    <RadarChart heroes={compared} allStats={allStats} />
+                  </div>
+
+                  {/* Right: Stat bars */}
+                  <div className="lg:w-72 w-full flex-shrink-0 space-y-0.5">
+                    <p className="text-[9px] font-bold uppercase tracking-[0.2em] text-white/20 mb-3">Performance</p>
+                    {RADAR_AXES.map((axis) => (
+                      <StatBar
+                        key={axis.key}
+                        label={axis.label}
+                        compared={compared}
+                        axisKey={axis.key}
+                        format={axis.format}
+                        unit={axis.unit}
+                      />
+                    ))}
+                    <div className="pt-2 mt-2 border-t border-white/[0.04]">
+                      <StatBar label="Matches" compared={compared} axisKey="match_count"
+                        format={(v) => Math.round(v || 0).toLocaleString()} unit="" />
+                      <StatBar label="Dmg Dealt" compared={compared} axisKey="avg_damage_dealt_to_heroes"
+                        format={(v) => Math.round(v || 0).toLocaleString()} unit="" />
+                      <StatBar label="Dmg Taken" compared={compared} axisKey="avg_damage_taken_from_heroes"
+                        format={(v) => Math.round(v || 0).toLocaleString()} unit="" />
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Bottom accent */}
+              <div className="h-px"
+                style={{ background: 'linear-gradient(90deg, transparent 10%, rgba(0,113,227,0.15) 50%, transparent 90%)' }} />
+            </div>
           </div>
+        )}
 
-          {/* Right: actions */}
-          <div className="flex items-center gap-2">
-            {compared.length >= 2 && (
+        {/* ── Bottom sticky bar ── */}
+        <div className="max-w-6xl mx-auto px-4 sm:px-6 pb-4">
+          <div
+            className="flex items-center justify-between gap-4 px-5 py-3 rounded-2xl border"
+            style={{
+              borderColor: 'rgba(0,113,227,0.25)',
+              background: 'rgba(8,10,18,0.92)',
+              backdropFilter: 'blur(20px)',
+              WebkitBackdropFilter: 'blur(20px)',
+              boxShadow: '0 -4px 30px rgba(0,0,0,0.4), 0 0 20px rgba(0,113,227,0.08)',
+            }}
+          >
+            {/* Left: toggle + avatars */}
+            <div className="flex items-center gap-3">
               <button
-                onClick={scrollToCompare}
-                className="flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold bg-accent-blue/15 text-accent-blue border border-accent-blue/30 hover:bg-accent-blue/25 btn-transition"
+                onClick={onToggleMode}
+                className={[
+                  'flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold btn-transition',
+                  compareMode
+                    ? 'bg-accent-blue text-white shadow-lg shadow-accent-blue/25'
+                    : 'glass border border-theme text-theme-secondary hover:text-accent-blue hover:border-accent-blue/40',
+                ].join(' ')}
               >
                 <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 10l7-7m0 0l7 7m-7-7v18" />
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
+                    d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
                 </svg>
-                View Chart
+                {compareMode ? 'Selecting...' : 'Compare'}
               </button>
-            )}
-            {compared.length > 0 && (
-              <button
-                onClick={onClear}
-                className="p-2 rounded-xl text-theme-muted hover:text-accent-pink hover:bg-accent-pink/10 btn-transition"
-                title="Clear all"
-              >
-                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-                </svg>
-              </button>
-            )}
+
+              {/* Selected hero avatars */}
+              {compared.length > 0 && (
+                <div className="flex items-center -space-x-2">
+                  {compared.map((hero, idx) => (
+                    <div
+                      key={hero.id}
+                      className="w-9 h-9 rounded-full overflow-hidden border-2 bg-white/5"
+                      style={{ borderColor: COMPARE_COLORS[idx].stroke, zIndex: compared.length - idx }}
+                    >
+                      {hero.image ? (
+                        <img src={hero.image} alt={hero.name} className="w-full h-full object-cover" />
+                      ) : (
+                        <div className="w-full h-full flex items-center justify-center text-xs text-white/30">
+                          {hero.name?.charAt(0)}
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {compared.length > 0 && (
+                <span className="text-xs text-theme-muted hidden sm:block">
+                  {compared.length}/{MAX_COMPARE} selected
+                </span>
+              )}
+            </div>
+
+            {/* Right: actions */}
+            <div className="flex items-center gap-2">
+              {canExpand && (
+                <button
+                  onClick={() => setExpanded((prev) => !prev)}
+                  className={[
+                    'flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-semibold btn-transition',
+                    expanded
+                      ? 'bg-accent-blue/20 text-accent-blue border border-accent-blue/40'
+                      : 'bg-accent-blue/10 text-accent-blue border border-accent-blue/25 hover:bg-accent-blue/20',
+                  ].join(' ')}
+                >
+                  <svg className={`w-4 h-4 transition-transform duration-300 ${expanded ? 'rotate-180' : ''}`}
+                    fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 15l7-7 7 7" />
+                  </svg>
+                  {expanded ? 'Hide Stats' : 'View Stats'}
+                </button>
+              )}
+              {compared.length > 0 && (
+                <button
+                  onClick={onClear}
+                  className="p-2 rounded-xl text-theme-muted hover:text-accent-pink hover:bg-accent-pink/10 btn-transition"
+                  title="Clear all"
+                >
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2}
+                      d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                  </svg>
+                </button>
+              )}
+            </div>
           </div>
         </div>
       </div>
-    </div>
+    </>
   )
 }
 
@@ -820,14 +883,6 @@ export default function HeroesPage({ activePage, onNavigate }) {
           </p>
         </section>
 
-        {/* ═══ Compare section ═══ */}
-        <CompareSection
-          compared={compared}
-          allStats={allStats}
-          onRemove={handleRemoveCompare}
-          onClear={handleClearCompare}
-        />
-
         {/* ═══ Hero Grid ═══ */}
         <section className="animate-slide-up">
           <div className="flex items-end justify-between mb-6">
@@ -924,14 +979,16 @@ export default function HeroesPage({ activePage, onNavigate }) {
         </section>
       </main>
 
-      {/* Bottom spacer for sticky bar */}
+      {/* Bottom spacer for compare drawer */}
       {(compareMode || compared.length > 0) && <div className="h-20" />}
 
-      {/* Sticky compare bar */}
-      <StickyCompareBar
+      {/* Compare drawer */}
+      <CompareDrawer
         compared={compared}
         compareMode={compareMode}
+        allStats={allStats}
         onToggleMode={handleToggleCompareMode}
+        onRemove={handleRemoveCompare}
         onClear={handleClearCompare}
       />
 
