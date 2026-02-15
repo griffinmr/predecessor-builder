@@ -89,3 +89,9 @@ export async function getHeroes() {
   if (!res.ok) throw new Error('Failed to load heroes')
   return (await res.json()).heroes
 }
+
+export async function getHeroStats(heroId, { timeFrame = '1M', gameMode = 'ranked' } = {}) {
+  const res = await fetch(`/api/heroes/${encodeURIComponent(heroId)}/stats?time_frame=${timeFrame}&game_mode=${gameMode}`)
+  if (!res.ok) throw new Error('Failed to load hero statistics')
+  return (await res.json()).stats
+}

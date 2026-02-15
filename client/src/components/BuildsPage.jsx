@@ -3,7 +3,7 @@ import { useState, useEffect, useCallback, useRef } from 'react'
 import Header             from './Header'
 import ParallaxBackground from './ParallaxBackground'
 import ScrollToTop        from './ScrollToTop'
-import { getCommunityBuilds, getHeroes } from '../services/api'
+import { getCommunityBuilds, getHeroes, getHeroStats } from '../services/api'
 import { ROLE_COLORS }    from '../data/mockData'
 
 // ─── Role config for omeda.city API ──────────────────────────────────────────
@@ -390,8 +390,243 @@ function ItemDetailModal({ item, onClose }) {
   )
 }
 
+// ─── Hero Detail Modal ──────────────────────────────────────────────────
+const ROLE_LABEL_MAP = {
+  carry: 'ADC', support: 'Support', jungle: 'Jungle', midlane: 'Mid', offlane: 'Offlane',
+}
+
+function WinRateBar({ rate }) {
+  const pct = rate.toFixed(1)
+  const color = rate >= 55 ? '#34d399' : rate >= 50 ? '#60a5fa' : rate >= 45 ? '#fbbf24' : '#f472b6'
+  return (
+    <div className="flex items-center gap-2">
+      <div className="flex-1 h-1.5 rounded-full bg-white/[0.06] overflow-hidden">
+        <div className="h-full rounded-full transition-all duration-700" style={{ width: `${Math.min(rate, 100)}%`, background: color }} />
+      </div>
+      <span className="text-xs font-bold min-w-[40px] text-right" style={{ color }}>{pct}%</span>
+    </div>
+  )
+}
+
+function HeroDetailModal({ hero, onClose, onFilterByHero }) {
+  const [stats, setStats]     = useState(null)
+  const [loading, setLoading] = useState(true)
+  const [error, setError]     = useState(null)
+
+  useEffect(() => {
+    const handler = (e) => { if (e.key === 'Escape') onClose() }
+    window.addEventListener('keydown', handler)
+    return () => window.removeEventListener('keydown', handler)
+  }, [onClose])
+
+  useEffect(() => {
+    if (!hero?.id) return
+    setLoading(true)
+    setError(null)
+    getHeroStats(hero.id)
+      .then(setStats)
+      .catch((err) => setError(err.message))
+      .finally(() => setLoading(false))
+  }, [hero?.id])
+
+  if (!hero) return null
+
+  const avgGameMin = stats?.avg_game_duration ? (stats.avg_game_duration / 60).toFixed(0) : null
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+      {/* Backdrop */}
+      <div
+        className="absolute inset-0 bg-black/70 backdrop-blur-md animate-fade-in"
+        onClick={onClose}
+      />
+
+      {/* Modal */}
+      <div
+        className="relative z-10 w-full max-w-sm rounded-2xl overflow-hidden animate-scale-in"
+        style={{
+          background: 'var(--glass-bg)',
+          backdropFilter: 'blur(24px)',
+          WebkitBackdropFilter: 'blur(24px)',
+          border: '1px solid rgba(96,165,250,0.25)',
+          boxShadow: '0 0 40px rgba(96,165,250,0.15), 0 25px 50px rgba(0,0,0,0.5), inset 0 1px 0 rgba(255,255,255,0.06)',
+        }}
+      >
+        {/* Hero image */}
+        <div className="relative h-52 overflow-hidden">
+          {hero.image ? (
+            <img src={hero.image} alt={hero.name} className="w-full h-full object-cover" />
+          ) : (
+            <div className="w-full h-full bg-gradient-to-br from-[#1a1a2e] to-[#0a0a14] flex items-center justify-center">
+              <span className="text-6xl font-light text-white/10">{hero.name?.charAt(0)}</span>
+            </div>
+          )}
+
+          <div className="absolute inset-x-0 bottom-0 h-28 bg-gradient-to-t from-black/90 via-black/50 to-transparent" />
+          <div className="absolute inset-x-0 top-0 h-px" style={{ background: 'linear-gradient(90deg, transparent, rgba(96,165,250,0.5), transparent)' }} />
+
+          {/* Close button */}
+          <button
+            onClick={onClose}
+            className="absolute top-3 right-3 p-1.5 rounded-full bg-black/50 hover:bg-black/70 btn-transition text-white/60 hover:text-white backdrop-blur-sm"
+          >
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          </button>
+
+          {/* Hero name + roles overlay */}
+          <div className="absolute bottom-0 inset-x-0 px-5 pb-4">
+            <h3 className="text-xl font-bold text-white tracking-tight leading-tight drop-shadow-lg">
+              {hero.name}
+            </h3>
+            {hero.roles && hero.roles.length > 0 && (
+              <div className="flex items-center gap-2 mt-2">
+                {hero.roles.map((role) => {
+                  const colorKey = ROLE_COLOR_MAP[role] || 'support'
+                  const colors   = ROLE_COLORS[colorKey] || ROLE_COLORS.support
+                  return (
+                    <span key={role} className={`inline-flex px-2 py-0.5 rounded-md text-[10px] font-bold uppercase tracking-wider ${colors.text} ${colors.bg}`}>
+                      {ROLE_LABEL_MAP[role] || role}
+                    </span>
+                  )
+                })}
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* Stats content */}
+        <div className="px-5 pb-5 pt-3 space-y-4 max-h-[50vh] overflow-y-auto">
+          {loading ? (
+            <div className="flex items-center justify-center py-8">
+              <div className="w-6 h-6 border-2 border-white/10 border-t-accent-blue rounded-full animate-spin" />
+            </div>
+          ) : error ? (
+            <p className="text-center text-accent-pink text-xs py-4">{error}</p>
+          ) : stats ? (
+            <>
+              {/* Win Rate + Pick Rate row */}
+              <div>
+                <div className="flex items-center gap-2 mb-3">
+                  <div className="w-4 h-4 rounded flex items-center justify-center bg-accent-blue/20">
+                    <svg className="w-2.5 h-2.5 text-accent-blue" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2.5}>
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M3 13h2v8H3zM9 9h2v12H9zM15 5h2v16h-2zM21 1h2v20h-2z" />
+                    </svg>
+                  </div>
+                  <h4 className="text-[10px] font-bold uppercase tracking-widest text-theme-muted">Ranked Stats (Last Month)</h4>
+                </div>
+
+                <div className="space-y-2.5">
+                  {/* Win Rate */}
+                  <div className="px-3 py-2.5 rounded-lg" style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.04)' }}>
+                    <div className="flex items-center justify-between mb-1.5">
+                      <span className="text-xs text-theme-secondary">Win Rate</span>
+                    </div>
+                    <WinRateBar rate={stats.winrate} />
+                  </div>
+
+                  {/* Pick Rate */}
+                  <div className="flex items-center justify-between px-3 py-2.5 rounded-lg" style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.04)' }}>
+                    <span className="text-xs text-theme-secondary">Pick Rate</span>
+                    <span className="text-xs font-bold text-accent-blue">{stats.pickrate.toFixed(1)}%</span>
+                  </div>
+
+                  {/* Match Count */}
+                  <div className="flex items-center justify-between px-3 py-2.5 rounded-lg" style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.04)' }}>
+                    <span className="text-xs text-theme-secondary">Matches</span>
+                    <span className="text-xs font-bold text-theme-primary">{Math.round(stats.match_count).toLocaleString()}</span>
+                  </div>
+                </div>
+              </div>
+
+              {/* KDA */}
+              <div>
+                <div className="flex items-center gap-2 mb-3">
+                  <div className="w-4 h-4 rounded flex items-center justify-center" style={{ background: 'rgba(52,211,153,0.15)' }}>
+                    <svg className="w-2.5 h-2.5 text-accent-green" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2.5}>
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M13 10V3L4 14h7v7l9-11h-7z" />
+                    </svg>
+                  </div>
+                  <h4 className="text-[10px] font-bold uppercase tracking-widest text-theme-muted">Combat Averages</h4>
+                </div>
+
+                {/* KDA display */}
+                <div className="px-3 py-3 rounded-lg mb-2" style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.04)' }}>
+                  <div className="flex items-center justify-center gap-1 text-lg">
+                    <span className="font-bold text-emerald-400">{stats.kills ? (stats.kills / stats.match_count).toFixed(1) : '—'}</span>
+                    <span className="text-white/20">/</span>
+                    <span className="font-bold text-rose-400">{stats.deaths ? (stats.deaths / stats.match_count).toFixed(1) : '—'}</span>
+                    <span className="text-white/20">/</span>
+                    <span className="font-bold text-sky-400">{stats.assists ? (stats.assists / stats.match_count).toFixed(1) : '—'}</span>
+                  </div>
+                  <div className="flex items-center justify-center gap-4 mt-1">
+                    <span className="text-[9px] text-white/30 uppercase tracking-wider">K / D / A</span>
+                    <span className="text-[9px] text-white/10">|</span>
+                    <span className="text-xs font-bold" style={{ color: stats.avg_kdar >= 3 ? '#34d399' : stats.avg_kdar >= 2 ? '#60a5fa' : '#fbbf24' }}>
+                      {stats.avg_kdar.toFixed(2)} KDA
+                    </span>
+                  </div>
+                </div>
+
+                {/* Other combat stats */}
+                <div className="grid grid-cols-2 gap-1.5">
+                  <div className="flex items-center justify-between px-3 py-2 rounded-lg" style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.04)' }}>
+                    <span className="text-[11px] text-theme-secondary">CS/min</span>
+                    <span className="text-[11px] font-bold text-theme-primary">{stats.avg_cs?.toFixed(1) || '—'}</span>
+                  </div>
+                  <div className="flex items-center justify-between px-3 py-2 rounded-lg" style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.04)' }}>
+                    <span className="text-[11px] text-theme-secondary">Gold/min</span>
+                    <span className="text-[11px] font-bold text-amber-400">{Math.round(stats.avg_gold || 0)}</span>
+                  </div>
+                  <div className="flex items-center justify-between px-3 py-2 rounded-lg" style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.04)' }}>
+                    <span className="text-[11px] text-theme-secondary">Dmg Dealt</span>
+                    <span className="text-[11px] font-bold text-accent-orange">{Math.round(stats.avg_damage_dealt_to_heroes || 0).toLocaleString()}</span>
+                  </div>
+                  <div className="flex items-center justify-between px-3 py-2 rounded-lg" style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.04)' }}>
+                    <span className="text-[11px] text-theme-secondary">Dmg Taken</span>
+                    <span className="text-[11px] font-bold text-accent-pink">{Math.round(stats.avg_damage_taken_from_heroes || 0).toLocaleString()}</span>
+                  </div>
+                  <div className="flex items-center justify-between px-3 py-2 rounded-lg" style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.04)' }}>
+                    <span className="text-[11px] text-theme-secondary">Perf Score</span>
+                    <span className="text-[11px] font-bold text-accent-purple">{stats.avg_performance_score?.toFixed(0) || '—'}</span>
+                  </div>
+                  {avgGameMin && (
+                    <div className="flex items-center justify-between px-3 py-2 rounded-lg" style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.04)' }}>
+                      <span className="text-[11px] text-theme-secondary">Avg Game</span>
+                      <span className="text-[11px] font-bold text-theme-primary">{avgGameMin}m</span>
+                    </div>
+                  )}
+                </div>
+              </div>
+            </>
+          ) : (
+            <p className="text-center text-xs text-theme-muted italic py-4">No statistics available for this hero.</p>
+          )}
+
+          {/* Filter builds button */}
+          <button
+            onClick={() => { onFilterByHero(hero); onClose() }}
+            className="w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl text-sm font-semibold
+              text-accent-blue bg-accent-blue/10 border border-accent-blue/30
+              hover:bg-accent-blue/20 btn-transition"
+          >
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 4a1 1 0 011-1h16a1 1 0 011 1v2.586a1 1 0 01-.293.707l-6.414 6.414a1 1 0 00-.293.707V17l-4 4v-6.586a1 1 0 00-.293-.707L3.293 7.293A1 1 0 013 6.586V4z" />
+            </svg>
+            View {hero.name} Builds
+          </button>
+        </div>
+
+        {/* Bottom accent */}
+        <div className="h-px" style={{ background: 'linear-gradient(90deg, transparent, rgba(96,165,250,0.3), transparent)' }} />
+      </div>
+    </div>
+  )
+}
+
 // ─── Build Card ──────────────────────────────────────────────────────────────
-function BuildCard({ build, index, visible, onItemClick }) {
+function BuildCard({ build, index, visible, onItemClick, onHeroClick }) {
   const colorKey = ROLE_COLOR_MAP[build.role] || 'support'
   const colors   = ROLE_COLORS[colorKey] || ROLE_COLORS.support
   const net      = build.upvotes - build.downvotes
@@ -408,7 +643,11 @@ function BuildCard({ build, index, visible, onItemClick }) {
       <div className="flex gap-4 p-4">
         {/* Hero portrait */}
         <div className="flex-shrink-0">
-          <div className="w-16 h-16 rounded-xl overflow-hidden bg-white/5 border border-white/10">
+          <button
+            onClick={(e) => { e.stopPropagation(); onHeroClick?.(build.hero) }}
+            className="w-16 h-16 rounded-xl overflow-hidden bg-white/5 border border-white/10 hover:border-accent-blue/40 hover:scale-110 btn-transition cursor-pointer"
+            title={build.hero?.name || 'Unknown hero'}
+          >
             {build.hero?.image ? (
               <img
                 src={build.hero.image}
@@ -421,7 +660,7 @@ function BuildCard({ build, index, visible, onItemClick }) {
                 ?
               </div>
             )}
-          </div>
+          </button>
         </div>
 
         {/* Content */}
@@ -528,7 +767,8 @@ export default function BuildsPage({ activePage, onNavigate }) {
   const [isLoading, setIsLoading]       = useState(true)
   const [error, setError]               = useState(null)
   const [visibleCount, setVisibleCount] = useState(0)
-  const [selectedItem, setSelectedItem] = useState(null)
+  const [selectedItem, setSelectedItem]         = useState(null)
+  const [selectedHeroInfo, setSelectedHeroInfo] = useState(null)
   const timers = useRef([])
 
   // Filters
@@ -765,7 +1005,7 @@ export default function BuildsPage({ activePage, onNavigate }) {
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               {builds.map((build, i) => (
-                <BuildCard key={build.id} build={build} index={i} visible={i < visibleCount} onItemClick={setSelectedItem} />
+                <BuildCard key={build.id} build={build} index={i} visible={i < visibleCount} onItemClick={setSelectedItem} onHeroClick={setSelectedHeroInfo} />
               ))}
             </div>
           )}
@@ -836,6 +1076,17 @@ export default function BuildsPage({ activePage, onNavigate }) {
         <ItemDetailModal
           item={selectedItem}
           onClose={() => setSelectedItem(null)}
+        />
+      )}
+
+      {/* Hero Detail Modal */}
+      {selectedHeroInfo && (
+        <HeroDetailModal
+          hero={selectedHeroInfo}
+          onClose={() => setSelectedHeroInfo(null)}
+          onFilterByHero={(hero) => {
+            setSelectedHero({ id: hero.id, name: hero.name, image: hero.image })
+          }}
         />
       )}
     </div>
