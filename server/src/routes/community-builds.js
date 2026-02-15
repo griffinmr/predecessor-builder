@@ -136,7 +136,7 @@ router.get('/heroes', async (_req, res) => {
       name:  h.display_name,
       slug:  h.slug,
       image: h.image ? `${OMEDA_BASE}${h.image}` : null,
-      roles: h.roles || [],
+      roles: (h.roles || []).map((r) => r.toLowerCase()),
     }))
     res.json({ heroes: list })
   } catch (err) {
@@ -168,6 +168,19 @@ async function getAllHeroStats(timeFrame, gameMode) {
   allStatsCache.set(cacheKey, { data: statsArr, at: Date.now() })
   return statsArr
 }
+
+// ── GET /heroes/all-stats — bulk stats for every hero ─────────────────────────
+router.get('/heroes/all-stats', async (req, res) => {
+  try {
+    const timeFrame = req.query.time_frame || '1M'
+    const gameMode  = req.query.game_mode  || 'ranked'
+    const allStats  = await getAllHeroStats(timeFrame, gameMode)
+    res.json({ stats: Array.isArray(allStats) ? allStats : [] })
+  } catch (err) {
+    console.error('all-hero-stats error:', err)
+    res.status(502).json({ error: 'Failed to fetch hero statistics' })
+  }
+})
 
 router.get('/heroes/:heroId/stats', async (req, res) => {
   try {
