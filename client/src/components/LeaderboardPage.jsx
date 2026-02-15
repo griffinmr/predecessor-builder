@@ -3,6 +3,7 @@ import { useState, useEffect, useRef, useCallback } from 'react'
 import Header              from './Header'
 import ParallaxBackground  from './ParallaxBackground'
 import ScrollToTop         from './ScrollToTop'
+import GlowingTitle        from './GlowingTitle'
 import HeroStatsModal      from './HeroStatsModal'
 import { getLeaderboard }  from '../services/api'
 
@@ -125,18 +126,46 @@ function PodiumCard({ player, position, visible, onSelect }) {
   const cfg = PODIUM_CONFIG[position]
   const rc = rankColor(player.rank_title)
   const isFirst = position === 1
+  const cardRef = useRef(null)
+  const [tilt, setTilt] = useState({ x: 0, y: 0, mouseX: 0, mouseY: 0 })
+
+  const handleMouseMove = (e) => {
+    if (!cardRef.current) return
+    const rect = cardRef.current.getBoundingClientRect()
+    const centerX = rect.left + rect.width / 2
+    const centerY = rect.top + rect.height / 2
+    const mouseX = e.clientX - centerX
+    const mouseY = e.clientY - centerY
+    const rotateY = (mouseX / rect.width) * 25
+    const rotateX = -(mouseY / rect.height) * 25
+    setTilt({ x: rotateX, y: rotateY, mouseX: (mouseX / rect.width) * 100, mouseY: (mouseY / rect.height) * 100 })
+  }
+
+  const handleMouseLeave = () => {
+    setTilt({ x: 0, y: 0, mouseX: 0, mouseY: 0 })
+  }
+
+  const hasTilt = Math.abs(tilt.x) + Math.abs(tilt.y) > 0
 
   return (
     <div
       className={`${cfg.order} ${visible ? cfg.animation : 'podium-hidden'}`}
-      style={{ animationFillMode: 'both' }}
+      style={{ animationFillMode: 'both', perspective: '1000px' }}
     >
       <button
+        ref={cardRef}
+        onMouseMove={handleMouseMove}
+        onMouseLeave={handleMouseLeave}
         onClick={() => onSelect(player)}
         className={`
           relative group cursor-pointer w-full
           ${isFirst ? 'podium-card-gold' : position === 2 ? 'podium-card-silver' : 'podium-card-bronze'}
         `}
+        style={{
+          transformStyle: 'preserve-3d',
+          transition: 'transform 150ms ease-out',
+          transform: `rotateX(${tilt.x}deg) rotateY(${tilt.y}deg) translateZ(${hasTilt ? '20px' : '0px'})`,
+        }}
       >
         {/* Animated gradient border */}
         <div
@@ -253,6 +282,15 @@ function PodiumCard({ player, position, visible, onSelect }) {
               </div>
             </div>
           </div>
+
+          {/* Holographic shine overlay */}
+          <div
+            className="absolute inset-0 rounded-2xl pointer-events-none transition-opacity duration-300"
+            style={{
+              opacity: hasTilt ? 0.25 : 0,
+              background: `radial-gradient(circle at ${50 + (tilt.mouseX || 0)}% ${50 + (tilt.mouseY || 0)}%, rgba(255,255,255,0.7) 0%, rgba(255,255,255,0.2) 25%, transparent 60%)`,
+            }}
+          />
         </div>
       </button>
     </div>
@@ -400,9 +438,7 @@ export default function LeaderboardPage({ activePage, onNavigate }) {
       <main className="max-w-6xl mx-auto px-6 py-16 space-y-10 relative z-10">
         {/* Title */}
         <section className="text-center space-y-3 animate-fade-in">
-          <h1 className="text-4xl font-semibold text-theme-primary tracking-tight">
-            Leaderboard
-          </h1>
+          <GlowingTitle text="Leaderboard." />
           <p className="text-lg text-theme-secondary max-w-xl mx-auto">
             Top Predecessor players ranked by Victory Points.
           </p>

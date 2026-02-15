@@ -16,6 +16,14 @@ function stripHtml(html) {
   return html.replace(/<br\s*\/?>/gi, ' ').replace(/<[^>]+>/g, '').replace(/\s+/g, ' ').trim()
 }
 
+function cleanDescription(desc) {
+  if (!desc) return desc
+  return desc
+    .replace(/>?\s*This guide has been converted[^\n]*\n?/gi, '')
+    .replace(/\[View the full guide on pred\.gg\]\([^)]*\)\n?/gi, '')
+    .trim() || null
+}
+
 function resolveItem(itemId, itemMap) {
   if (!itemId) return null
   const raw = itemMap.get(itemId)
@@ -83,7 +91,7 @@ router.get('/community-builds', async (req, res) => {
       return {
         id:          b.id,
         title:       b.title,
-        description: b.description,
+        description: cleanDescription(b.description),
         role:        b.role,
         author:      b.author,
         upvotes:     b.upvotes_count,
@@ -91,6 +99,12 @@ router.get('/community-builds', async (req, res) => {
         version:     b.game_version?.name || null,
         skill_order: b.skill_order,
         has_modules: b.modules && b.modules.length > 0,
+        modules: (b.modules || []).map((m) => ({
+          title: m.title,
+          items: [m.item1_id, m.item2_id, m.item3_id, m.item4_id, m.item5_id, m.item6_id, m.item7_id]
+            .map((id) => resolveItem(id, itemMap))
+            .filter(Boolean),
+        })),
         created_at:  b.created_at,
         updated_at:  b.updated_at,
         hero: hero ? {

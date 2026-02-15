@@ -3,6 +3,7 @@ import { useState, useEffect, useCallback, useRef } from 'react'
 import Header             from './Header'
 import ParallaxBackground from './ParallaxBackground'
 import ScrollToTop        from './ScrollToTop'
+import GlowingTitle       from './GlowingTitle'
 import { getCommunityBuilds, getHeroes, getHeroStats } from '../services/api'
 import { ROLE_COLORS }    from '../data/mockData'
 
@@ -625,111 +626,230 @@ function HeroDetailModal({ hero, onClose, onFilterByHero }) {
   )
 }
 
+// ─── Helpers ─────────────────────────────────────────────────────────────────
+const SKILL_COLORS = {
+  1: { bg: 'bg-accent-blue/20',   text: 'text-accent-blue',   dot: 'bg-accent-blue',   label: 'Q' },
+  2: { bg: 'bg-accent-green/20',  text: 'text-accent-green',  dot: 'bg-accent-green',  label: 'W' },
+  3: { bg: 'bg-accent-orange/20', text: 'text-accent-orange', dot: 'bg-accent-orange', label: 'E' },
+  4: { bg: 'bg-accent-purple/20', text: 'text-accent-purple', dot: 'bg-accent-purple', label: 'R' },
+}
+
+const ITEM_RARITY_BORDER = {
+  Common:    'border-white/10',
+  Uncommon:  'border-accent-green/30',
+  Rare:      'border-accent-blue/30',
+  Epic:      'border-accent-purple/30',
+  Legendary: 'border-accent-orange/30',
+}
+
+function timeAgo(dateStr) {
+  if (!dateStr) return null
+  const diff = Date.now() - new Date(dateStr).getTime()
+  const mins  = Math.floor(diff / 60000)
+  if (mins < 1) return 'just now'
+  if (mins < 60) return `${mins}m ago`
+  const hrs = Math.floor(mins / 60)
+  if (hrs < 24) return `${hrs}h ago`
+  const days = Math.floor(hrs / 24)
+  if (days < 30) return `${days}d ago`
+  const months = Math.floor(days / 30)
+  if (months < 12) return `${months}mo ago`
+  return `${Math.floor(months / 12)}y ago`
+}
+
+// ─── Skill Order Row ─────────────────────────────────────────────────────────
+function SkillOrderRow({ skillOrder }) {
+  if (!skillOrder || skillOrder.length === 0) return null
+  return (
+    <div className="flex items-center gap-0.5">
+      {skillOrder.map((skill, i) => {
+        const s = SKILL_COLORS[skill] || SKILL_COLORS[1]
+        return (
+          <div
+            key={i}
+            className={`w-4 h-4 rounded-sm flex items-center justify-center text-[7px] font-black ${s.bg} ${s.text}`}
+            title={`Level ${i + 1}: ${s.label}`}
+          >
+            {s.label}
+          </div>
+        )
+      })}
+    </div>
+  )
+}
+
 // ─── Build Card ──────────────────────────────────────────────────────────────
+const DESC_CHAR_LIMIT = 200
+
 function BuildCard({ build, index, visible, onItemClick, onHeroClick }) {
+  const [expanded, setExpanded] = useState(false)
+  const [descExpanded, setDescExpanded] = useState(false)
   const colorKey = ROLE_COLOR_MAP[build.role] || 'support'
   const colors   = ROLE_COLORS[colorKey] || ROLE_COLORS.support
   const net      = build.upvotes - build.downvotes
+  const roleLabel = ROLES.find((r) => r.id === build.role)?.uiLabel || build.role
+
+  // Pick a role-specific border color for the card accent
+  const roleBorderColor = {
+    adc:     'border-accent-pink/30',
+    support: 'border-accent-green/30',
+    jungle:  'border-accent-teal/30',
+    mid:     'border-accent-purple/30',
+    offlane: 'border-accent-orange/30',
+  }[colorKey] || 'border-accent-blue/30'
+
+  const roleGlowColor = {
+    adc:     'hover:shadow-accent-pink/8',
+    support: 'hover:shadow-accent-green/8',
+    jungle:  'hover:shadow-accent-teal/8',
+    mid:     'hover:shadow-accent-purple/8',
+    offlane: 'hover:shadow-accent-orange/8',
+  }[colorKey] || 'hover:shadow-accent-blue/8'
+
+  const roleAccentLine = {
+    adc:     'from-transparent via-accent-pink/50 to-transparent',
+    support: 'from-transparent via-accent-green/50 to-transparent',
+    jungle:  'from-transparent via-accent-teal/50 to-transparent',
+    mid:     'from-transparent via-accent-purple/50 to-transparent',
+    offlane: 'from-transparent via-accent-orange/50 to-transparent',
+  }[colorKey] || 'from-transparent via-accent-blue/50 to-transparent'
 
   return (
     <div
       className={[
-        'glass rounded-2xl border border-theme overflow-hidden btn-transition group',
-        'hover:border-accent-blue/30 hover:shadow-lg hover:shadow-accent-blue/5',
+        'glass rounded-2xl border overflow-hidden btn-transition group relative',
+        roleBorderColor,
+        `hover:shadow-xl ${roleGlowColor}`,
         visible ? 'animate-slide-up opacity-100' : 'opacity-0 translate-y-4',
       ].join(' ')}
       style={{ animationDelay: `${index * 60}ms`, animationFillMode: 'both' }}
     >
-      <div className="flex gap-4 p-4">
-        {/* Hero portrait */}
-        <div className="flex-shrink-0">
-          <button
-            onClick={(e) => { e.stopPropagation(); onHeroClick?.(build.hero) }}
-            className="w-16 h-16 rounded-xl overflow-hidden bg-white/5 border border-white/10 hover:border-accent-blue/40 hover:scale-110 btn-transition cursor-pointer"
-            title={build.hero?.name || 'Unknown hero'}
-          >
-            {build.hero?.image ? (
-              <img
-                src={build.hero.image}
-                alt={build.hero.name}
-                className="w-full h-full object-cover"
-                loading="lazy"
-              />
-            ) : (
-              <div className="w-full h-full flex items-center justify-center text-theme-muted text-lg font-bold">
-                ?
+      {/* Role-colored top accent line */}
+      <div className={`h-px bg-gradient-to-r ${roleAccentLine}`} />
+
+      {/* ── Main card content ── */}
+      <div className="p-4">
+        {/* Top section: Hero + Info */}
+        <div className="flex gap-4">
+          {/* Hero portrait — larger with role-colored ring */}
+          <div className="flex-shrink-0">
+            <button
+              onClick={(e) => { e.stopPropagation(); onHeroClick?.(build.hero) }}
+              className={`relative w-20 h-20 rounded-xl overflow-hidden bg-white/5 border-2 ${roleBorderColor} hover:scale-105 btn-transition cursor-pointer`}
+              title={build.hero?.name || 'Unknown hero'}
+            >
+              {build.hero?.image ? (
+                <img
+                  src={build.hero.image}
+                  alt={build.hero.name}
+                  className="w-full h-full object-cover"
+                  loading="lazy"
+                />
+              ) : (
+                <div className="w-full h-full flex items-center justify-center text-theme-muted text-xl font-bold">
+                  ?
+                </div>
+              )}
+              {/* Role badge overlay on portrait */}
+              <div className="absolute bottom-0 inset-x-0 flex justify-center pb-0.5">
+                <span className={`px-1.5 py-px rounded text-[8px] font-black uppercase tracking-wider ${colors.text} backdrop-blur-sm`}
+                  style={{ background: 'rgba(0,0,0,0.6)' }}
+                >
+                  {roleLabel}
+                </span>
               </div>
+            </button>
+          </div>
+
+          {/* Title + meta */}
+          <div className="flex-1 min-w-0">
+            {/* Title row */}
+            <div className="flex items-start justify-between gap-2">
+              <h3 className="text-base font-bold text-theme-primary leading-tight line-clamp-1">
+                {build.title}
+              </h3>
+              {/* Vote score pill */}
+              <div
+                className={[
+                  'flex-shrink-0 flex items-center gap-1 px-2 py-1 rounded-lg text-xs font-bold',
+                  net > 0
+                    ? 'text-accent-green bg-accent-green/10'
+                    : net < 0
+                      ? 'text-accent-pink bg-accent-pink/10'
+                      : 'text-theme-muted bg-white/5',
+                ].join(' ')}
+              >
+                <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 20 20">
+                  {net >= 0 ? (
+                    <path fillRule="evenodd" d="M10 17a.75.75 0 01-.75-.75V5.612L5.29 9.77a.75.75 0 01-1.08-1.04l5.25-5.5a.75.75 0 011.08 0l5.25 5.5a.75.75 0 11-1.08 1.04l-3.96-4.158V16.25A.75.75 0 0110 17z" clipRule="evenodd" />
+                  ) : (
+                    <path fillRule="evenodd" d="M10 3a.75.75 0 01.75.75v10.638l3.96-4.158a.75.75 0 111.08 1.04l-5.25 5.5a.75.75 0 01-1.08 0l-5.25-5.5a.75.75 0 111.08-1.04l3.96 4.158V3.75A.75.75 0 0110 3z" clipRule="evenodd" />
+                  )}
+                </svg>
+                {net > 0 ? `+${net}` : net}
+              </div>
+            </div>
+
+            {/* Author + timestamp */}
+            <div className="flex items-center gap-2 mt-1">
+              <span className="text-xs text-theme-secondary font-medium">
+                {build.hero?.name || 'Unknown'}
+              </span>
+              <span className="text-white/10">·</span>
+              <span className="text-[11px] text-theme-muted">
+                by {build.author || 'Anonymous'}
+              </span>
+              {build.updated_at && (
+                <>
+                  <span className="text-white/10">·</span>
+                  <span className="text-[11px] text-theme-muted">
+                    {timeAgo(build.updated_at)}
+                  </span>
+                </>
+              )}
+            </div>
+
+            {/* Description preview */}
+            {build.description && (
+              <p className="text-[11px] text-theme-muted leading-relaxed mt-1.5 line-clamp-2">
+                {build.description}
+              </p>
             )}
-          </button>
+          </div>
         </div>
 
-        {/* Content */}
-        <div className="flex-1 min-w-0">
-          {/* Title row */}
-          <div className="flex items-start justify-between gap-2">
-            <h3 className="text-sm font-bold text-theme-primary truncate leading-tight">
-              {build.title}
-            </h3>
-            {/* Vote score */}
-            <div className={`flex-shrink-0 flex items-center gap-1 text-xs font-semibold ${net > 0 ? 'text-accent-green' : net < 0 ? 'text-accent-pink' : 'text-theme-muted'}`}>
-              <svg className="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 20 20">
-                {net >= 0 ? (
-                  <path fillRule="evenodd" d="M10 17a.75.75 0 01-.75-.75V5.612L5.29 9.77a.75.75 0 01-1.08-1.04l5.25-5.5a.75.75 0 011.08 0l5.25 5.5a.75.75 0 11-1.08 1.04l-3.96-4.158V16.25A.75.75 0 0110 17z" clipRule="evenodd" />
+        {/* ── Items row ── */}
+        <div className="flex items-center gap-1.5 mt-3.5">
+          {/* Crest */}
+          {build.crest && (
+            <>
+              <button
+                onClick={() => onItemClick?.(build.crest)}
+                className="relative w-11 h-11 rounded-lg overflow-hidden border-2 border-accent-gold/40 bg-accent-gold/5 flex-shrink-0 hover:border-accent-gold/70 hover:scale-110 btn-transition cursor-pointer group/item"
+                title={build.crest.name}
+              >
+                {build.crest.image ? (
+                  <img src={build.crest.image} alt={build.crest.name} className="w-full h-full object-cover" loading="lazy" />
                 ) : (
-                  <path fillRule="evenodd" d="M10 3a.75.75 0 01.75.75v10.638l3.96-4.158a.75.75 0 111.08 1.04l-5.25 5.5a.75.75 0 01-1.08 0l-5.25-5.5a.75.75 0 111.08-1.04l3.96 4.158V3.75A.75.75 0 0110 3z" clipRule="evenodd" />
+                  <div className="w-full h-full flex items-center justify-center text-[9px] text-accent-gold font-bold">C</div>
                 )}
+              </button>
+              {/* Arrow separator */}
+              <svg className="w-3.5 h-3.5 text-white/15 flex-shrink-0 mx-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
               </svg>
-              {net > 0 ? `+${net}` : net}
-            </div>
-          </div>
+            </>
+          )}
 
-          {/* Meta row */}
-          <div className="flex items-center gap-2 mt-1.5 flex-wrap">
-            {/* Hero name */}
-            <span className="text-xs text-theme-secondary font-medium">
-              {build.hero?.name || 'Unknown'}
-            </span>
-
-            {/* Role badge */}
-            {build.role && (
-              <span className={`inline-flex px-2 py-0.5 rounded-md text-[10px] font-bold uppercase tracking-wider ${colors.text} ${colors.bg}`}>
-                {ROLES.find((r) => r.id === build.role)?.uiLabel || build.role}
-              </span>
-            )}
-
-            {/* Author */}
-            <span className="text-[11px] text-theme-muted">
-              by {build.author || 'Anonymous'}
-            </span>
-          </div>
-
-          {/* Items row */}
-          <div className="flex items-center gap-2 mt-3">
-            {/* Crest */}
-            {build.crest && (
-              <>
-                <button
-                  onClick={() => onItemClick?.(build.crest)}
-                  className="w-11 h-11 rounded-lg overflow-hidden border border-accent-gold/30 bg-accent-gold/5 flex-shrink-0 hover:border-accent-gold/60 hover:scale-110 btn-transition cursor-pointer"
-                  title={build.crest.name}
-                >
-                  {build.crest.image ? (
-                    <img src={build.crest.image} alt={build.crest.name} className="w-full h-full object-cover" loading="lazy" />
-                  ) : (
-                    <div className="w-full h-full flex items-center justify-center text-[9px] text-theme-muted">C</div>
-                  )}
-                </button>
-                <div className="w-px h-6 bg-white/10 mx-0.5" />
-              </>
-            )}
-
-            {/* Items */}
-            {build.items?.filter(Boolean).map((item, i) => (
+          {/* Items with rarity-colored borders */}
+          {build.items?.filter(Boolean).map((item, i) => {
+            const rarityBorder = ITEM_RARITY_BORDER[item.rarity] || 'border-white/10'
+            return (
               <button
                 key={i}
                 onClick={() => onItemClick?.(item)}
-                className="w-11 h-11 rounded-lg overflow-hidden border border-white/10 bg-white/5 flex-shrink-0 hover:border-accent-blue/40 hover:scale-110 btn-transition cursor-pointer"
-                title={item.name}
+                className={`w-11 h-11 rounded-lg overflow-hidden border ${rarityBorder} bg-white/5 flex-shrink-0 hover:scale-110 btn-transition cursor-pointer`}
+                title={`${item.name}${item.rarity ? ` (${item.rarity})` : ''}`}
               >
                 {item.image ? (
                   <img src={item.image} alt={item.name} className="w-full h-full object-cover" loading="lazy" />
@@ -737,25 +857,131 @@ function BuildCard({ build, index, visible, onItemClick, onHeroClick }) {
                   <div className="w-full h-full flex items-center justify-center text-[9px] text-theme-muted">{i + 1}</div>
                 )}
               </button>
-            ))}
-          </div>
+            )
+          })}
+        </div>
 
-          {/* Footer row */}
-          <div className="flex items-center gap-3 mt-2.5">
-            {build.version && (
-              <span className="text-[10px] font-medium text-theme-muted px-1.5 py-0.5 rounded bg-white/5 border border-white/5">
-                {build.version}
-              </span>
-            )}
-            {build.skill_order && build.skill_order.length > 0 && (
-              <span className="text-[10px] text-accent-teal font-medium">Skill Order</span>
-            )}
-            {build.has_modules && (
-              <span className="text-[10px] text-accent-purple font-medium">Modules</span>
-            )}
-          </div>
+        {/* ── Footer: version, badges, expand button ── */}
+        <div className="flex items-center gap-2 mt-3">
+          {build.version && (
+            <span className="text-[10px] font-medium text-theme-muted px-2 py-0.5 rounded-md bg-white/5 border border-white/5">
+              {build.version}
+            </span>
+          )}
+          {build.skill_order && build.skill_order.length > 0 && (
+            <span className="inline-flex items-center gap-1 text-[10px] font-semibold text-accent-teal px-2 py-0.5 rounded-md bg-accent-teal/10 border border-accent-teal/20">
+              <svg className="w-2.5 h-2.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2.5}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M3 13h2v8H3zM9 9h2v12H9zM15 5h2v16h-2zM21 1h2v20h-2z" />
+              </svg>
+              Skills
+            </span>
+          )}
+          {build.has_modules && (
+            <span className="inline-flex items-center gap-1 text-[10px] font-semibold text-accent-purple px-2 py-0.5 rounded-md bg-accent-purple/10 border border-accent-purple/20">
+              <svg className="w-2.5 h-2.5" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeWidth={2.5}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z" />
+              </svg>
+              Modules
+            </span>
+          )}
+
+          <div className="flex-1" />
+
+          {/* Expand/collapse button */}
+          {(build.skill_order?.length > 0 || build.modules?.length > 0 || build.description) && (
+            <button
+              onClick={() => setExpanded(!expanded)}
+              className="flex items-center gap-1 text-[10px] font-medium text-theme-muted hover:text-theme-primary btn-transition px-2 py-1 rounded-lg hover:bg-white/[0.05]"
+            >
+              {expanded ? 'Less' : 'More'}
+              <svg className={`w-3 h-3 btn-transition ${expanded ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+              </svg>
+            </button>
+          )}
         </div>
       </div>
+
+      {/* ── Expanded detail section ── */}
+      {expanded && (
+        <div className="border-t border-white/[0.06] px-4 pb-4 pt-3 space-y-3 animate-fade-in">
+          {/* Full description */}
+          {build.description && (() => {
+            const isLong = build.description.length > DESC_CHAR_LIMIT
+            const displayText = isLong && !descExpanded
+              ? build.description.slice(0, DESC_CHAR_LIMIT).trimEnd() + '...'
+              : build.description
+            return (
+              <div className="px-3 py-2.5 rounded-lg" style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.04)' }}>
+                <p className="text-[11px] text-theme-secondary leading-relaxed whitespace-pre-line">
+                  {displayText}
+                </p>
+                {isLong && (
+                  <button
+                    onClick={() => setDescExpanded(!descExpanded)}
+                    className="mt-1.5 text-[11px] font-medium text-accent-blue hover:text-accent-blue/80 btn-transition"
+                  >
+                    {descExpanded ? 'Show less' : 'Show more'}
+                  </button>
+                )}
+              </div>
+            )
+          })()}
+
+          {/* Skill order visualization */}
+          {build.skill_order && build.skill_order.length > 0 && (
+            <div>
+              <div className="flex items-center gap-2 mb-2">
+                <h4 className="text-[10px] font-bold uppercase tracking-widest text-theme-muted">Skill Order</h4>
+                <div className="flex items-center gap-2 ml-auto">
+                  {[1, 2, 3, 4].map((s) => (
+                    <div key={s} className="flex items-center gap-1">
+                      <div className={`w-2 h-2 rounded-sm ${SKILL_COLORS[s].dot}`} />
+                      <span className={`text-[9px] font-bold ${SKILL_COLORS[s].text}`}>{SKILL_COLORS[s].label}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+              <SkillOrderRow skillOrder={build.skill_order} />
+            </div>
+          )}
+
+          {/* Modules */}
+          {build.modules && build.modules.length > 0 && (
+            <div>
+              <h4 className="text-[10px] font-bold uppercase tracking-widest text-theme-muted mb-2">
+                Modules
+              </h4>
+              <div className="space-y-2">
+                {build.modules.map((mod, mi) => (
+                  <div key={mi} className="px-3 py-2.5 rounded-lg" style={{ background: 'rgba(255,255,255,0.03)', border: '1px solid rgba(255,255,255,0.04)' }}>
+                    <span className="text-[11px] font-semibold text-accent-purple mb-2 block">{mod.title}</span>
+                    <div className="flex items-center gap-1.5 flex-wrap">
+                      {mod.items?.filter(Boolean).map((item, ii) => {
+                        const rb = ITEM_RARITY_BORDER[item.rarity] || 'border-white/10'
+                        return (
+                          <button
+                            key={ii}
+                            onClick={() => onItemClick?.(item)}
+                            className={`w-9 h-9 rounded-md overflow-hidden border ${rb} bg-white/5 hover:scale-110 btn-transition cursor-pointer`}
+                            title={`${item.name}${item.rarity ? ` (${item.rarity})` : ''}`}
+                          >
+                            {item.image ? (
+                              <img src={item.image} alt={item.name} className="w-full h-full object-cover" loading="lazy" />
+                            ) : (
+                              <div className="w-full h-full flex items-center justify-center text-[8px] text-theme-muted">{ii + 1}</div>
+                            )}
+                          </button>
+                        )
+                      })}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+      )}
     </div>
   )
 }
@@ -859,12 +1085,10 @@ export default function BuildsPage({ activePage, onNavigate }) {
 
       <main className="max-w-6xl mx-auto px-6 py-16 space-y-8 relative z-10">
         {/* Title */}
-        <section className="text-center space-y-3 animate-fade-in">
-          <h1 className="text-4xl font-semibold text-theme-primary tracking-tight">
-            Community Builds
-          </h1>
-          <p className="text-lg text-theme-secondary max-w-xl mx-auto">
-            Browse top builds from the Predecessor community.
+        <section className="text-center space-y-4 animate-fade-in">
+          <GlowingTitle text="Community Builds." />
+          <p className="text-lg text-theme-secondary max-w-xl mx-auto leading-relaxed">
+            Browse and explore top builds from the Predecessor community.
           </p>
         </section>
 
@@ -984,79 +1208,105 @@ export default function BuildsPage({ activePage, onNavigate }) {
         {/* Build Grid */}
         <section>
           {isLoading ? (
-            <div className="flex items-center justify-center py-20">
-              <div className="w-8 h-8 border-2 border-theme border-t-accent-blue rounded-full animate-spin" />
+            <div className="flex flex-col items-center justify-center py-24 gap-4">
+              <div className="relative">
+                <div className="w-10 h-10 border-2 border-white/5 border-t-accent-blue rounded-full animate-spin" />
+                <div className="absolute inset-0 w-10 h-10 border-2 border-transparent border-b-accent-purple/30 rounded-full animate-spin" style={{ animationDirection: 'reverse', animationDuration: '1.5s' }} />
+              </div>
+              <p className="text-sm text-theme-muted animate-pulse">Loading builds...</p>
             </div>
           ) : error ? (
             <div className="text-center py-20">
+              <div className="inline-flex items-center justify-center w-14 h-14 rounded-2xl bg-accent-pink/10 border border-accent-pink/20 mb-4">
+                <svg className="w-7 h-7 text-accent-pink" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 9v3.75m9-.75a9 9 0 11-18 0 9 9 0 0118 0zm-9 3.75h.008v.008H12v-.008z" />
+                </svg>
+              </div>
               <p className="text-accent-pink font-medium">{error}</p>
               <button
                 onClick={() => setPage(page)}
-                className="mt-4 text-sm text-accent-blue hover:underline"
+                className="mt-4 text-sm font-medium text-accent-blue hover:text-accent-blue/80 btn-transition"
               >
                 Try again
               </button>
             </div>
           ) : builds.length === 0 ? (
             <div className="text-center py-20">
-              <p className="text-theme-secondary text-lg">No builds found</p>
-              <p className="text-theme-muted text-sm mt-2">Try adjusting your filters</p>
+              <div className="inline-flex items-center justify-center w-14 h-14 rounded-2xl bg-white/5 border border-white/10 mb-4">
+                <svg className="w-7 h-7 text-theme-muted" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 5.196a7.5 7.5 0 0010.607 10.607z" />
+                </svg>
+              </div>
+              <p className="text-theme-secondary text-lg font-medium">No builds found</p>
+              <p className="text-theme-muted text-sm mt-2">Try adjusting your filters or search terms</p>
             </div>
           ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              {builds.map((build, i) => (
-                <BuildCard key={build.id} build={build} index={i} visible={i < visibleCount} onItemClick={setSelectedItem} onHeroClick={setSelectedHeroInfo} />
-              ))}
-            </div>
+            <>
+              {/* Results count */}
+              <div className="flex items-center justify-between mb-4">
+                <p className="text-xs text-theme-muted">
+                  Showing <span className="font-semibold text-theme-secondary">{builds.length}</span> builds
+                  {page > 1 && <span> — page {page}</span>}
+                </p>
+                {(selectedHero || selectedRole || debouncedName || currentVersion) && (
+                  <button
+                    onClick={() => { setSelectedHero(null); setSelectedRole(null); setSearchName(''); setCurrentVersion(false) }}
+                    className="text-[11px] font-medium text-accent-pink hover:text-accent-pink/80 btn-transition"
+                  >
+                    Clear all filters
+                  </button>
+                )}
+              </div>
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                {builds.map((build, i) => (
+                  <BuildCard key={build.id} build={build} index={i} visible={i < visibleCount} onItemClick={setSelectedItem} onHeroClick={setSelectedHeroInfo} />
+                ))}
+              </div>
+            </>
           )}
         </section>
 
         {/* Pagination */}
         {!isLoading && !error && builds.length > 0 && (
-          <section className="flex items-center justify-center gap-4 pt-4">
-            <button
-              onClick={() => setPage(Math.max(1, page - 1))}
-              disabled={page <= 1}
-              className={[
-                'flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-medium btn-transition border',
-                page <= 1
-                  ? 'text-theme-muted border-transparent cursor-not-allowed opacity-40'
-                  : 'text-theme-secondary border-theme hover:text-theme-primary hover:bg-white/[0.05] hover:border-accent-blue/30',
-              ].join(' ')}
-            >
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
-              </svg>
-              Previous
-            </button>
+          <section className="flex items-center justify-center pt-4">
+            <div className="glass rounded-2xl border border-theme flex items-center overflow-hidden">
+              <button
+                onClick={() => setPage(Math.max(1, page - 1))}
+                disabled={page <= 1}
+                className={[
+                  'flex items-center gap-2 px-5 py-3 text-sm font-medium btn-transition border-r border-theme',
+                  page <= 1
+                    ? 'text-theme-muted cursor-not-allowed opacity-40'
+                    : 'text-theme-secondary hover:text-theme-primary hover:bg-white/[0.05]',
+                ].join(' ')}
+              >
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+                </svg>
+                Previous
+              </button>
 
-            <span className="text-sm font-semibold text-theme-primary px-4 py-2 rounded-xl bg-white/5 border border-theme min-w-[3rem] text-center">
-              {page}
-            </span>
+              <span className="text-sm font-bold text-theme-primary px-6 py-3 bg-white/[0.03]">
+                {page}
+              </span>
 
-            <button
-              onClick={() => setPage(page + 1)}
-              disabled={builds.length < 20}
-              className={[
-                'flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-medium btn-transition border',
-                builds.length < 20
-                  ? 'text-theme-muted border-transparent cursor-not-allowed opacity-40'
-                  : 'text-theme-secondary border-theme hover:text-theme-primary hover:bg-white/[0.05] hover:border-accent-blue/30',
-              ].join(' ')}
-            >
-              Next
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-              </svg>
-            </button>
+              <button
+                onClick={() => setPage(page + 1)}
+                disabled={builds.length < 20}
+                className={[
+                  'flex items-center gap-2 px-5 py-3 text-sm font-medium btn-transition border-l border-theme',
+                  builds.length < 20
+                    ? 'text-theme-muted cursor-not-allowed opacity-40'
+                    : 'text-theme-secondary hover:text-theme-primary hover:bg-white/[0.05]',
+                ].join(' ')}
+              >
+                Next
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                </svg>
+              </button>
+            </div>
           </section>
-        )}
-
-        {/* Attribution */}
-        {!isLoading && !error && (
-          <p className="text-center text-xs text-theme-muted mt-2">
-            Data from omeda.city
-          </p>
         )}
       </main>
 
