@@ -32,6 +32,8 @@ export default function ParallaxBackground() {
           transform: `translateY(${wraithOffset}px)`,
         }}
       >
+        {/* Glow aura behind Wraith */}
+        <div className="parallax-glow parallax-glow-wraith" />
         <img
           src="/backgrounds/WraithBackground.webp"
           alt=""
@@ -46,6 +48,8 @@ export default function ParallaxBackground() {
           transform: `translateY(${kwangOffset}px)`,
         }}
       >
+        {/* Glow aura behind Kwang */}
+        <div className="parallax-glow parallax-glow-kwang" />
         <img
           src="/backgrounds/KwangBackground.png"
           alt=""
