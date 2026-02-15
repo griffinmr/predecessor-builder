@@ -1,0 +1,9 @@
+{
+  "name": "predecessor-builder",
+  "private": true,
+  "scripts": {
+    "postinstall": "npm install --prefix client && npm install --prefix server",
+    "build": "npm run build --prefix client",
+    "start": "npm start --prefix server"
+  }
+}
